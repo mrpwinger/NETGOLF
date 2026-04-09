@@ -13,6 +13,7 @@ server.js /api/admin/log e /api/admin/whitelist.
 
 from __future__ import annotations
 
+import os
 from functools import wraps
 
 from flask import current_app, jsonify, render_template, request
@@ -21,7 +22,7 @@ from sqlalchemy import desc, select
 
 from ..config import AppConfig
 from ..db import db
-from ..models import AccessLog, User
+from ..models import AccessLog, FigCredential, User
 from . import bp
 
 
@@ -93,25 +94,23 @@ def users():
         ]
     )
 
-@bp.route("/db-inspect")
-@admin_required
-@bp.route("/db-inspect")
+
+@bp.get("/db-inspect")
 def db_inspect():
     """
-    Endpoint diagnostico TEMPORANEO. DA RIMUOVERE dopo il debug.
+    Endpoint diagnostico TEMPORANEO.
+    Restituisce un dump dello stato del database: dove vive il file SQLite,
+    quanto pesa, quante righe per tabella, sample utenti/credenziali/log.
+    Serve per verificare che il volume Railway stia persistendo davvero.
+    DA RIMUOVERE dopo aver finito di debuggare.
     """
-    from flask import jsonify
-    from flask_login import current_user
-    import os
-
+    # Check admin inline (no decoratore, per evitare conflitti di import)
     if not current_user.is_authenticated:
         return jsonify(error="not authenticated"), 401
     if not getattr(current_user, "is_admin", False):
         return jsonify(error="not admin"), 403
 
-    from ..models import User, FigCredential, AccessLog
-    from ..db import db
-
+    # ── Dove vive davvero il file SQLite ─────────────────────────────
     db_path = str(db.engine.url.database)
     db_size = 0
     if db_path and os.path.exists(db_path):
@@ -120,6 +119,7 @@ def db_inspect():
         except Exception as e:
             db_size = f"error: {e}"
 
+    # ── Listing della directory che contiene il DB ───────────────────
     db_dir = os.path.dirname(db_path) if db_path else None
     dir_listing = []
     dir_error = None
@@ -138,6 +138,7 @@ def db_inspect():
     else:
         dir_error = "directory non esistente"
 
+    # ── Conteggi per tabella ─────────────────────────────────────────
     try:
         user_count = User.query.count()
     except Exception as e:
@@ -151,17 +152,19 @@ def db_inspect():
     except Exception as e:
         log_count = f"error: {e}"
 
-    users = []
+    # ── Sample utenti (solo campi sicuri) ────────────────────────────
+    users_dump = []
     try:
         for u in User.query.order_by(User.id).limit(20):
-            users.append({
+            users_dump.append({
                 "id": u.id,
                 "email": u.email,
                 "is_admin": bool(u.is_admin),
             })
     except Exception as e:
-        users = [{"error": str(e)}]
+        users_dump = [{"error": str(e)}]
 
+    # ── Sample credenziali FIG (no PK 'id', usa user_id) ─────────────
     fig_creds = []
     try:
         for f in FigCredential.query.limit(20):
@@ -173,6 +176,7 @@ def db_inspect():
     except Exception as e:
         fig_creds = [{"error": str(e)}]
 
+    # ── Ultimi 10 access log ─────────────────────────────────────────
     logs = []
     try:
         for l in AccessLog.query.order_by(AccessLog.id.desc()).limit(10):
@@ -194,7 +198,7 @@ def db_inspect():
         "user_count": user_count,
         "fig_credential_count": fig_count,
         "access_log_count": log_count,
-        "users": users,
+        "users": users_dump,
         "fig_credentials": fig_creds,
         "last_10_logs": logs,
     })
