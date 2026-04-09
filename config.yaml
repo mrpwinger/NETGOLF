@@ -34,7 +34,7 @@ server:
 
 database:
   # SQLite locale. Il path è relativo alla root del progetto.
-  url: "sqlite:///data/netgolf.db"
+url: "sqlite:///data/runtime/netgolf.db"
   # Se true, all'avvio crea le tabelle se non esistono (comodo in dev).
   auto_create: true
 
