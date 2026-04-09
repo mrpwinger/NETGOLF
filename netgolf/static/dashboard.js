@@ -154,6 +154,7 @@ state._dataLoading = false;
 
 async function loadAllData() {
   console.log('[LOAD] loadAllData START | results before:', state.results.length);
+  if (!state.user) state.user = {};
   const btn = document.getElementById('btn-login');
   try {
     // Carica profilo e storico in parallelo
