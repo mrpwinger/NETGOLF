@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}{{ _('Dashboard') }} — NETGOLF{% endblock %}
+
+{% block head %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='dashboard.css') }}">
+{% endblock %}
+
+{% block content %}
+  {% if not current_user.fig_credential %}
+    <div class="notice">
+      <strong>{{ _('Configura le credenziali FIG') }}</strong>
+      <p>{{ _('Per vedere profilo, storico e scorecard hai bisogno di inserire tessera e password dell\'area riservata FederGolf. Le credenziali vengono cifrate prima di essere salvate.') }}</p>
+      <a class="btn btn-primary" href="{{ url_for('auth.profilo') }}">{{ _('Vai al profilo') }}</a>
+    </div>
+  {% else %}
+    {# Markup originale NETGOLF — riutilizzato integralmente.
+       Il tasto "Esci" viene riagganciato al logout Flask via JS. #}
+    {% include 'main/_dashboard_markup.html' %}
+  {% endif %}
+{% endblock %}
+
+{% block scripts %}
+  {% if current_user.fig_credential %}
+    <script>
+      // Bootstrap: nella nuova architettura la dashboard mostra subito
+      // screen-main (login già avvenuto lato Flask).
+      window.addEventListener('DOMContentLoaded', () => {
+        const main = document.getElementById('screen-main');
+        if (main) main.classList.add('active');
+        // Il tasto Esci deve puntare al logout Flask
+        const btnLogout = document.getElementById('btn-logout');
+        if (btnLogout) btnLogout.onclick = () => { window.location.href = '/auth/logout'; };
+      });
+    </script>
+    <script src="{{ url_for('static', filename='dashboard.js') }}"></script>
+  {% endif %}
+{% endblock %}
