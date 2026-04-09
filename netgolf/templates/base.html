@@ -5,15 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}NETGOLF{% endblock %}</title>
   <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='netgolf.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='dashboard.css') }}">
   {% block head %}{% endblock %}
 </head>
 <body>
   <header class="topbar">
-    <a class="brand" href="{{ url_for('main.index') }}">
-      <img src="{{ url_for('static', filename='scratch_logo_260324a.png') }}"
-           alt="NETGOLF" style="height:28px;vertical-align:middle">
-      <span style="margin-left:8px">NETGOLF</span>
+<a class="brand" href="{{ url_for('main.index') }}">
+      <img src="{{ url_for('static', filename='scratch_logo_260324a.png') }}" alt="NETGOLF">
+      <span>NETGOLF</span>
     </a>
     <nav class="topnav">
       {% if current_user.is_authenticated %}
