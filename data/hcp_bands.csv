@@ -1,0 +1,9 @@
+min,max,label_it,label_en,bg,accent
+-99,-0.1,Pro,Pro,"linear-gradient(135deg,#DBB42C,#FCF6BA)",#D3AE28
+0,4.9,Cecchino,Sharpshooter,"linear-gradient(135deg,#FFFFFF,#f2f2f2)",#FFFFFF
+5.0,9.9,One dgt,Single digit,"linear-gradient(135deg,#fff75e,#fff056)",#fcf300
+10.0,14.9,Solido,Solid,"linear-gradient(135deg,#0582ca,#006494)",#3554DD
+15.0,19.9,Emergente,Emerging,"linear-gradient(135deg,#ff002b,#e00026)",#FF1C1C
+20.0,24.9,Bogey Player,Bogey Player,"linear-gradient(135deg,#e00026,#1c9800)",#2DAB11
+25.0,29.9,Appassionato,Enthusiast,"linear-gradient(135deg,#ff9500,#ff8800)",#fb5607
+30.0,99.9,Neofita,Beginner,"linear-gradient(135deg,#ff55c0,#ff36ab)",#FC4E99

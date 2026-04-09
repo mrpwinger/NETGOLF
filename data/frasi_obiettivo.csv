@@ -1,0 +1,94 @@
+id,fascia,lang,testo
+PRO-01,Pro,it,Il Muro dei 36: Riuscire a giocare il proprio handicap (raggiungere i 36 punti) superando la penalità matematica dell'handicap negativo.
+PRO-02,Pro,it,Caccia al 4: Segnare una rarissima buca da 4 punti stableford netti.
+PRO-03,Pro,it,Immuni allo Zero: Chiudere l'intero giro senza mai fare segnare una X sulla carta.
+PRO-04,Pro,it,La Macchina da 3 Punti: Raccogliere almeno 3 punti netti su non meno di 5 buche diverse.
+PRO-05,Pro,it,"Rimonta Netta: Fare uno score Stableford sulle seconde 9 superiore ad almeno 2 punti rispetto a quello delle prime 9, dimostrando tenuta mentale nel finale di gara."
+PRO-06,Pro,it,Il Sacro Graal (Bogey-Free 18): Consegnare una carta immacolata: 18 buche senza bogey o peggio.
+PRO-07,Pro,it,Zona 60: Rompere la barriera dei 70 colpi (giocare 69 o meno).
+PRO-08,Pro,it,L'Aquila Reale: Segnare un Eagle (o un Albatross) sulla carta.
+PRO-09,Pro,it,Quota -3: Sommare i punteggi di tutti i Par 5 del campo e chiudere con un risultato cumulativo di almeno 3 colpi sotto il par.
+PRO-10,Pro,it,La Tempesta Perfetta: Segnare almeno 6 Birdie lordi totali durante l'arco delle 18 buche.
+PRO-11,Pro,it,Rosso Assoluto: Chiudere sia le prime 9 che le seconde 9 buche con uno score lordo inferiore al Par del campo per ciascuna metà.
+PRO-12,Pro,it,Bouvette: Chiudere le prime 9 con almeno 19 punti stableford all'attivo.
+CEC-01,Cecchino,it,Il Giro Clean Sheet: Nessuna buca da 1  o 0 punti stableford. Chiudere tutto il giro segnando sempre almeno 2 punti a buca.
+CEC-02,Cecchino,it,Back-to-Back: Segnare almeno due buche consecutive da almeno 3 punti stableford.
+CEC-03,Cecchino,it,Sotto Par a Metà: Chiudere le prime o le seconde 9 buche con almeno 19 punti Stableford.
+CEC-04,Cecchino,it,Dominatore dei Par 5: Raccogliere un totale di almeno 10 punti sommando solo i risultati dei Par 5.
+CEC-05,Cecchino,it,Birdie Rush: Segnare non meno di quattro buche da almeno 3 punti stableford nell'arco delle 18 buche.
+CEC-06,Cecchino,it,"Il Trofeo Vardon: Mai due buche consecutive da 1 punto stableford. Se fai 1 punto, la buca successiva devi assolutamente portarne a casa almeno 2."
+CEC-07,Cecchino,it,Bogey-Free 9: Chiudere almeno metà percorso (le prime o le seconde 9) senza segnare nemmeno un Bogey.
+CEC-08,Cecchino,it,"Il Trofeo Vardon medal: Nessun Bogey consecutivo. Se fai un Bogey, la buca dopo deve essere assolutamente Par o Birdie."
+CEC-09,Cecchino,it,"Sotto Par sui Par 3: La somma degli score di tutti i Par 3 del campo deve essere inferiore al loro Par totale (es. se ci sono quattro Par 3, lo score cumulativo deve essere 11 o meno)."
+CEC-10,Cecchino,it,Immuni allo Zero: Chiudere l'intero giro senza mai fare segnare una X sulla carta.
+CEC-11,Cecchino,it,Bouvette: Chiudere le prime 9 con almeno 19 punti stableford all'attivo.
+ONE-01,One dgt,it,Il Sacro Graal: Battere il proprio handicap portando a casa almeno 37 punti Stableford totali.
+ONE-02,One dgt,it,Immuni allo Zero: Chiudere l'intero giro senza mai fare segnare una X sulla carta.
+ONE-03,One dgt,it,"Bounce Back: Se fai una buca da 1 punto stableford (o 0), la sfida è fare subito almeno 3 punti sulla buca successiva."
+ONE-04,One dgt,it,Dominio sui Par 3: Raccogliere sempre almeno 2 punti stableford su tutti i Par 3 del campo.
+ONE-05,One dgt,it,Partenza Lanciata: Chiudere le prime 9 buche con almeno 19 punti stableford.
+ONE-06,One dgt,it,Chiusura d'Acciaio: Raccogliere almeno 6 punti stableford totali sulle ultime 3 buche del giro.
+ONE-07,One dgt,it,Hat-Trick di Birdie: Riuscire a segnare almeno 3 Birdie nell'arco delle 18 buche.
+ONE-08,One dgt,it,Partenza Lanciata: Chiudere le prime 9 buche rompendo il muro dei 40 colpi (giocare 39 o meno).
+ONE-09,One dgt,it,Il Limite del 7: Concedersi un massimo assoluto di 7 Bogey totali in tutta la carta (e nessun doppio o peggio).
+ONE-10,One dgt,it,Chiusura d'Acciaio: Giocare le ultime 3 buche sotto il par complessivo.
+ONE-11,One dgt,it,Cassaforte sui Par 4: Nessun Doppio Bogey o peggio su tutti i Par 4 del tracciato.
+ONE-12,One dgt,it,Bouvette: Chiudere le prime 9 con almeno 19 punti stableford all'attivo.
+SOL-01,Solido,it,Missione 36: Giocare esattamente il proprio handicap raccogliendo 36 punti stableford a fine giro.
+SOL-02,Solido,it,"Il Triangolo da 3: Segnare almeno una buca da 3 punti stableford (o 4) su un Par 3, una su un Par 4 e una su un Par 5."
+SOL-03,Solido,it,La Striscia: Infilare 8 buche consecutive portando a casa sempre almeno 2 punti.
+SOL-04,Solido,it,Bogey Max: La X è vietata. La sfida è non fare mai meno di 1 punto stableford su nessuna buca per tutto il giro.
+SOL-05,Solido,it,La Regola del 12: Assicurarsi almeno 12 buche chiuse con almeno 2 punti stableford.
+SOL-06,Solido,it,Il Jolly dello Zero: Concedersi al massimo 1 sola buca da X  in tutta la giornata.
+SOL-07,Solido,it,Seconda Marcia: Fare un punteggio Stableford sulle seconde 9 più alto rispetto a quello delle prime 9.
+SOL-08,Solido,it,La Regola del 10: Mettere in cascina almeno 10 Par durante il giro.
+SOL-09,Solido,it,Il Jolly del Doppio: Concedersi al massimo 1 solo Doppio Bogey o peggio in tutte le 18 buche.
+SOL-10,Solido,it,Seconda Marcia medal: Chiudere le seconde 9 buche con uno score medal inferiore rispetto a quello delle prime 9.
+SOL-11,Solido,it,Birdie in the Bank: Segnare almeno un Birdie durante il giro.
+SOL-12,Solido,it,L'Argine: Non segnare mai due Bogey (o peggio) consecutivi sulle seconde 9 buche.
+SOL-13,Solido,it,Bouvette: Chiudere le prime 9 con almeno 19 punti stableford all'attivo.
+EME-01,Emergente,it,Quota 36: Arrivare alla fatidica soglia dei 36 punti Stableford totali.
+EME-02,Emergente,it,Niente Big Numbers: Nessuna buca da X. L'obiettivo è portare a casa almeno 1 punto stableford anche nelle buche peggiori.
+EME-03,Emergente,it,Pari e Dispari: Segnare almeno 2 punti netti su 3 buche pari e su 3 buche dispari.
+EME-04,Emergente,it,Il Primo Birdie Netto: Assicurarsi almeno una buca da 3 punti stableford (o meglio) nel corso delle prime 6 buche.
+EME-05,Emergente,it,L'88% di Efficienza: Andare a punti (minimo 1 punto stableford) su almeno 16 buche su 18.
+EME-06,Emergente,it,Break 20: Chiudere una delle due metà del tracciato (prime o seconde 9) con almeno 20 punti stableford all'attivo.
+EME-07,Emergente,it,Nessun Back-to-Back Letale: Divieto assoluto di fare due (X) consecutivi.
+EME-08,Emergente,it,L'88% di Efficienza Medal: Giocare almeno 16 buche su 18 in Bogey o meglio.
+EME-09,Emergente,it,Predatore dei Par 5: Riuscire a fare almeno un Par su un Par 5.
+EME-10,Emergente,it,Nessun Back-to-Back Letale: Divieto assoluto di fare due Doppi Bogey consecutivi.
+EME-11,Emergente,it,Fuga dai Corti: Giocare tutti i Par 3 del campo in non peggio di +1 su ogni buca.
+EME-12,Emergente,it,Break 44: Chiudere una delle due metà del tracciato (prime o seconde 9) in 44 colpi o meno.
+EME-13,Emergente,it,Bouvette: Chiudere le prime 9 con almeno 19 punti stableford all'attivo.
+BOG-01,Bogey Player,it,Obiettivo 34+: Rompere la soglia della zona neutra e portare in club house almeno 34 punti stableford totali.
+BOG-02,Bogey Player,it,Il Poker Pieno: Riuscire a fare almeno 4 buche chiuse con 3 punti stableford o meglio.
+BOG-03,Bogey Player,it,"Il Trenino: Fare almeno 9 buche consecutive raccogliendo sempre punti (da 1 a 3), senza incappare in nessuna X."
+BOG-04,Bogey Player,it,Zero Tripli (Netti): Chiudere la carta con non più di una X totale.
+BOG-05,Bogey Player,it,Metà Tabellino Salvo: Avere almeno 9 buche in cui si sono segnati 2 o più punti stableford a fine giro.
+BOG-06,Bogey Player,it,Sprint Finale: Chiudere l'ultima buca (la 18) con almeno 2 punti stableford. per andare via contenti.
+BOG-07,Bogey Player,it,Bouvette: Chiudere le prime 9 con almeno 19 punti stableford all'attivo.
+BOG-08,Bogey Player,it,Metà Tabellino Salvo: Avere almeno 9 buche chiuse in Bogey (o meglio) a fine giro.
+BOG-09,Bogey Player,it,Il Muro dell'Otto: Il numero massimo consentito su qualsiasi buca è un 7. Niente 8 o superiori sulla carta.
+BOG-10,Bogey Player,it,Coppia di Par: Assicurarsi almeno 2 Par prima di arrivare alla buca 18.
+BOG-11,Bogey Player,it,Sprint Finale: Chiudere l'ultima buca (la 18) con un Bogey o meglio per finire in bellezza.
+BOG-12,Bogey Player,it,La Decina: Non superare i 10 colpi totali sopra il par su una singola metà del campo (es: massimo +10 sulle prime 9).
+APP-01,Appassionato,it,Il Sacro 36: Il traguardo di giocare esattamente il proprio potenziale (36 punti stableford).
+APP-02,Appassionato,it,La Costanza dei 2: Riuscire a segnare no meno di 2 punti stableford in almeno 10 buche su 18.
+APP-03,Appassionato,it,Doppia Gioia: Segnare almeno due buche eccezionali da 3 o 4 punti stableford.
+APP-04,Appassionato,it,Nine Under 18: Chiudere metà percorso (prime o seconde 9) raccogliendo almeno 18 punti stableford.
+APP-05,Appassionato,it,Sopravvivenza sui Par 5: Portare a casa sempre almeno 1 punto su tutti i Par 5 del campo.
+APP-06,Appassionato,it,Bouvette: Chiudere le prime 9 con almeno 19 punti stableford all'attivo.
+APP-07,Appassionato,it,L'Half Century: Rompere il muro dei 50 colpi (giocare 49 o meno) su almeno un giro di 9 buche.
+APP-08,Appassionato,it,Il Tesoro dei Bogey: Riuscire a portare a casa almeno 9 Bogey (o meglio) totali.
+APP-09,Appassionato,it,Sopravvivenza sui Par 5 medal: Nessuno score peggiore di un Doppio Bogey (+2) su tutti i Par 5 del campo.
+APP-10,Appassionato,it,"Zero X: Se giochi Stableford, l'obiettivo è finire tutte le 18 buche portando sempre un risultato valido sulla carta, senza mai alzare la palla."
+NEO-01,Neofita,it,Missione 30+: Superare la rassicurante quota dei 30 punti Stableford totali.
+NEO-02,Neofita,it,"Addio X Frequenti: Rispetto al tuo giro precedente, chiudere lo score con almeno due (X) in meno."
+NEO-03,Neofita,it,Il Birdie Magico: Riuscire a fare almeno una buca da 3 punti stableford (o addirittura 4).
+NEO-04,Neofita,it,La Decina: Riuscire a segnare i canonici 2 punti stableford (o meglio) su almeno 5 buche consecutive durante tutto il giro.
+NEO-05,Neofita,it,Meno di 60: Fare almeno 15 punti Stableford su un singolo set di 9 buche.
+NEO-06,Neofita,it,La Striscia dell'1: Riuscire a fare almeno 1 punto per 10 buche di fila.
+NEO-07,Neofita,it,Bouvette: Chiudere le prime 9 con almeno 19 punti stableford all'attivo.
+NEO-08,Neofita,it,Break 55: Chiudere le prime 9 o le seconde 9 in 54 colpi o meno.
+NEO-09,Neofita,it,"Quota 8 Massima: Nessuno score superiore all'8 su tutto il giro. Se fai 8, salvi l'obiettivo."
+NEO-10,Neofita,it,La Buca del +2: Riuscire a segnare un Doppio Bogey o meglio su almeno sette buche.
