@@ -142,10 +142,9 @@ function apiHeaders() {
 // ═══════════════════════════════════════════
 // LOGIN
 // ═══════════════════════════════════════════
-document.getElementById('btn-login').addEventListener('click', doLogin);
-['inp-user','inp-pass'].forEach(id =>
-  document.getElementById(id).addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); })
-);
+const btnLogin = document.getElementById('btn-login');
+if (btnLogin) btnLogin.addEventListener('click', doLogin);
+['inp-user','inp-pass'].forEach(id => { const el = document.getElementById(id); if (el) el.addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); }); });
 
 async function doLogin() { window.location.href = '/auth/login'; }
 
