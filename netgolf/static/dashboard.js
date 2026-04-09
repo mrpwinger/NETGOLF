@@ -1,3 +1,41 @@
+// ═══════════════════════════════════════════
+// SAFE QUERY: protegge dai residui del vecchio JS che cercano elementi
+// dello screen-login (non più esistente nella nuova architettura NETGOLF).
+// Wrappa document.getElementById in modo che, su id mancanti, ritorni un
+// oggetto-fantasma che assorbe addEventListener / classList / style / .value
+// senza esplodere.
+// ═══════════════════════════════════════════
+(function() {
+  const _orig = document.getElementById.bind(document);
+  const noop = function() {};
+  const ghostClassList = { add: noop, remove: noop, toggle: noop, contains: () => false };
+  const ghostStyle = new Proxy({}, { get: () => '', set: () => true });
+  document.getElementById = function(id) {
+    const el = _orig(id);
+    if (el) return el;
+    return new Proxy({ _ghost: true, _id: id }, {
+      get(target, prop) {
+        if (prop === '_ghost' || prop === '_id') return target[prop];
+        if (prop === 'addEventListener' || prop === 'removeEventListener') return noop;
+        if (prop === 'classList') return ghostClassList;
+        if (prop === 'style') return ghostStyle;
+        if (prop === 'dataset') return {};
+        if (prop === 'textContent' || prop === 'innerHTML' || prop === 'innerText' || prop === 'value') return '';
+        if (prop === 'children' || prop === 'childNodes') return [];
+        if (prop === 'parentNode' || prop === 'parentElement') return null;
+        if (prop === 'click' || prop === 'focus' || prop === 'blur') return noop;
+        if (prop === 'getAttribute' || prop === 'setAttribute' || prop === 'removeAttribute') return noop;
+        if (prop === 'appendChild' || prop === 'removeChild' || prop === 'insertBefore') return function(n) { return n; };
+        return undefined;
+      },
+      set(target, prop, value) {
+        // assegnazioni tipo el.textContent = '...' silenziosamente assorbite
+        return true;
+      }
+    });
+  };
+})();
+
 // Gara valida se valida === 'S' oppure 'V'
 function isValida(v, sd) {
   if (v !== 'S' && v !== 'V') return false;
