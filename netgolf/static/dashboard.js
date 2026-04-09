@@ -193,8 +193,8 @@ async function loadAllData() {
   } catch(e) {
     console.error('[LOAD] loadAllData ERROR:', e.message, e);
     showError('Errore di connessione. Riprova più tardi.');
-  } finally {
-    btn.classList.remove('loading');
+} finally {
+    if (btn) btn.classList.remove('loading');
   }
 }
 
