@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="{{ get_locale() }}">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}NETGOLF{% endblock %}</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='dashboard.css') }}">
+  {% block head %}{% endblock %}
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="{{ url_for('main.index') }}">
+      <img src="{{ url_for('static', filename='scratch_logo_260324a.png') }}"
+           alt="NETGOLF" style="height:28px;vertical-align:middle">
+      <span style="margin-left:8px">NETGOLF</span>
+    </a>
+    <nav class="topnav">
+      {% if current_user.is_authenticated %}
+        <a href="{{ url_for('main.dashboard') }}">{{ _('Dashboard') }}</a>
+        <a href="{{ url_for('auth.profilo') }}">{{ _('Profilo') }}</a>
+        {% if current_user.is_admin %}
+          <a href="{{ url_for('admin.index') }}">{{ _('Admin') }}</a>
+        {% endif %}
+        <a href="{{ url_for('auth.logout') }}">{{ _('Esci') }}</a>
+      {% else %}
+        <a href="{{ url_for('auth.login') }}">{{ _('Accedi') }}</a>
+        <a href="{{ url_for('auth.register') }}">{{ _('Registrati') }}</a>
+      {% endif %}
+
+      <span class="lang-switch">
+        {% for code in config['NETGOLF'].raw.i18n.supported_locales %}
+          {% if code == get_locale() %}
+            <strong>{{ code|upper }}</strong>
+          {% else %}
+            <a href="{{ url_for('auth.set_language', lang=code) }}">{{ code|upper }}</a>
+          {% endif %}
+        {% endfor %}
+      </span>
+    </nav>
+  </header>
+
+  <main class="content">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="flash-container">
+          {% for cat, msg in messages %}
+            <div class="flash flash-{{ cat }}">{{ msg }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="footer">
+    <small>
+      NETGOLF v{{ config['NETGOLF'].raw.app.version }} —
+      {{ _('Reingegnerizzato su Flask, i18n, SQLite') }}
+    </small>
+  </footer>
+  {% block scripts %}{% endblock %}
+</body>
+</html>
