@@ -1329,11 +1329,14 @@ document.addEventListener('DOMContentLoaded', () => {
   const btn = document.getElementById('btn-simula');
   if (btn) btn.addEventListener('click', openSimOverlay);
 
-  // Auto-login disabilitato — mostra sempre la schermata di login
-  showLoginScreen();
+  // Su NETGOLF il login è gestito da Flask: se siamo qui siamo già loggati,
+  // quindi facciamo partire direttamente il caricamento dei dati.
+  tryAutoLogin();
+
   // Mostra pannello test se URL contiene ?test=1
   if (new URLSearchParams(window.location.search).get('test') === '1') {
-    document.getElementById('hcp-test-panel').style.display = 'block';
+    const panel = document.getElementById('hcp-test-panel');
+    if (panel) panel.style.display = 'block';
   }
 });
 
