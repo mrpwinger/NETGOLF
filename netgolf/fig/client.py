@@ -283,13 +283,44 @@ class FigClient:
             if value:
                 profile[label] = value
 
-        # 3. Pulizia valori evidentemente sbagliati (>60 char, chr(0), ecc.)
+# 3. Pulizia valori evidentemente sbagliati (>60 char, chr(0), ecc.)
         for k in list(profile.keys()):
             v = profile[k]
             if not isinstance(v, str):
                 continue
             if len(v) > 60 or "\x00" in v:
                 profile[k] = None
+
+        # 4. Alias camelCase per compatibilità con il front-end legacy.
+        # Il dashboard.js originale (ereditato dal vecchio gscore proxy)
+        # usa nomi tipo handicapIndex / dataNascita / lowHcpIndex / ecc.
+        # Aggiungiamo entrambe le convenzioni così il JS funziona senza
+        # toccare le sue 1500 righe.
+        snake_to_camel = {
+            "handicap_index":         "handicapIndex",
+            "low_hcp_index":          "lowHcpIndex",
+            "data_nascita":           "dataNascita",
+            "luogo_di_nascita":       "luogoNascita",
+            "codice_fiscale":         "codiceFiscale",
+            "data_rinnovo":           "dataRinnovo",
+            "data_rilascio_cm":       "dataRilascioCM",
+            "scadenza_cm":            "scadenzaCM",
+            "certificato_medico":     "certMedico",
+            "stato_tessera":          "statoTessera",
+            "tipologia_associazione": "tipologia",
+            "sottotipo_tesseramento": "sottotipoTess",
+            "tipo_tesserato":         "tipoTesserato",
+            "telefono_ufficio":       "telefonoUfficio",
+            "data_privacy":           "dataPrivacy",
+        }
+        for snake, camel in snake_to_camel.items():
+            if snake in profile:
+                profile[camel] = profile[snake]
+
+        # Il vecchio JS si aspetta anche un campo generico "handicap"
+        # come fallback di handicapIndex
+        if "handicap_index" in profile:
+            profile["handicap"] = profile["handicap_index"]
 
         return profile
 
