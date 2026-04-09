@@ -204,8 +204,12 @@ async function loadAllData() {
 
 function showError(msg) {
   const el = document.getElementById('login-error');
-  el.textContent = msg;
-  el.style.display = 'block';
+  if (el) {
+    el.textContent = msg;
+    el.style.display = 'block';
+  } else {
+    console.error('[showError]', msg);
+  }
 }
 
 // ═══════════════════════════════════════════
