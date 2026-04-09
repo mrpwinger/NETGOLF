@@ -53,8 +53,24 @@ def create_app(
     )
 
     # ── Flask core settings (derivate da AppConfig) ──────────────────────
+# ── Flask core settings (derivate da AppConfig) ──────────────────────
     app.config["SECRET_KEY"] = gs_cfg.secret_key()
-    app.config["SQLALCHEMY_DATABASE_URI"] = gs_cfg.database_url_absolute()
+    db_uri = gs_cfg.database_url_absolute()
+    app.config["SQLALCHEMY_DATABASE_URI"] = db_uri
+    # Assicura che la cartella del file SQLite esista (es. data/runtime/).
+    # Importante quando il path del DB è dentro un volume montato a runtime:
+    # Railway crea il mount point ma non sottocartelle annidate.
+    if db_uri.startswith("sqlite:///"):
+        from pathlib import Path as _P
+        if db_uri.startswith("sqlite:////"):
+            db_path = _P("/" + db_uri[len("sqlite:////"):])
+        else:
+            db_path = _P(db_uri[len("sqlite:///"):])
+        try:
+            db_path.parent.mkdir(parents=True, exist_ok=True)
+            app.logger.info("DB dir verificata: %s", db_path.parent)
+        except Exception as e:
+            app.logger.warning("Impossibile creare la dir del DB %s: %s", db_path.parent, e)
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(
         minutes=gs_cfg.raw.security.session.lifetime_minutes
