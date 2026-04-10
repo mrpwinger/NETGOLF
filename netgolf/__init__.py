@@ -46,11 +46,40 @@ def create_app(
     gs_cfg: AppConfig = load_config(config_path=config_path, project_root=project_root)
     app.config["NETGOLF"] = gs_cfg
 
-    # ── Logging ───────────────────────────────────────────────────────────
+# ── Logging ───────────────────────────────────────────────────────────
     logging.basicConfig(
         level=getattr(logging, gs_cfg.raw.app.log_level.upper(), logging.INFO),
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     )
+
+    # File di log dedicato agli eventi di accesso (login, logout, register,
+    # fetch FIG, ecc.). Vive accanto al DB nel volume persistente, così
+    # sopravvive ai redeploy. Rotation automatica a 5 MB, max 10 file
+    # ruotati, totale 50 MB nel caso peggiore.
+    try:
+        from logging.handlers import RotatingFileHandler
+        access_log_dir = Path(gs_cfg.database_url_absolute().replace("sqlite:////", "/").replace("sqlite:///", "")).parent
+        access_log_dir.mkdir(parents=True, exist_ok=True)
+        access_log_path = access_log_dir / "access.log"
+        access_handler = RotatingFileHandler(
+            access_log_path,
+            maxBytes=5 * 1024 * 1024,
+            backupCount=10,
+            encoding="utf-8",
+        )
+        access_handler.setFormatter(
+            logging.Formatter(
+                "%(asctime)s  %(message)s",
+                datefmt="%Y-%m-%d %H:%M:%S",
+            )
+        )
+        access_logger = logging.getLogger("netgolf.access")
+        access_logger.setLevel(logging.INFO)
+        access_logger.addHandler(access_handler)
+        access_logger.propagate = False  # non duplica sul logger root
+        app.logger.info("Access log file: %s", access_log_path)
+    except Exception as e:
+        app.logger.warning("Impossibile inizializzare access log file: %s", e)
 
     # ── Flask core settings (derivate da AppConfig) ──────────────────────
 # ── Flask core settings (derivate da AppConfig) ──────────────────────
