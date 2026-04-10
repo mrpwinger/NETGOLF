@@ -80,7 +80,20 @@ def _log_event(event: str, success: bool, reason: str | None, user: User | None,
             db.session.execute(
                 db.delete(AccessLog).where(AccessLog.id.in_(old_ids))
             )
-    db.session.commit()
+    
+# Loggalo anche sul file di testo (oltre al DB)
+    import logging as _lg
+    _lg.getLogger("netgolf.access").info(
+        "%s  %s  %s  email=%s  ip=%s  ua=%r  reason=%s",
+        event,
+        "OK " if success else "FAIL",
+        f"user_id={user.id}" if user else "user_id=-",
+        email or "-",
+        request.remote_addr or "-",
+        (request.user_agent.string or "-")[:80],
+        reason or "-",
+    )  
+db.session.commit()
 
 
 # ─── Register ────────────────────────────────────────────────────────────────
