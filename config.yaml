@@ -1,0 +1,215 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# NETGOLF — file di configurazione
+#
+# Tutto ciò che era hard-coded in server.js (URL, timeout, regex di parsing,
+# selettori, limiti) sta qui dentro. Modificare questo file NON richiede
+# modifiche al codice Python: il modulo netgolf/config.py carica e valida
+# questo YAML con pydantic, e ogni blueprint lo legge tramite current_app.config.
+#
+# Le anagrafiche (circoli, fasce HCP, frasi) stanno invece nei CSV in data/.
+# ─────────────────────────────────────────────────────────────────────────────
+
+app:
+  name: NETGOLF
+  version: "2.0"
+  release_date: "2026-04-09"
+  whats_new:
+    - "Reingegnerizzato in Python/Flask con profili utente NETGOLF dedicati (email+password)"
+    - "Credenziali area riservata FIG salvate cifrate (AES-GCM) nel profilo"
+    - "Tutta la configurazione parametrica in config.yaml + CSV in data/"
+    - "Internazionalizzazione IT (default) / EN via ?lang=xx"
+  # Log level di default (DEBUG|INFO|WARNING|ERROR)
+  log_level: INFO
+  # Se true, espone endpoint /api/debug-* (vecchi nel server.js). In prod: false.
+  debug_endpoints: false
+
+server:
+  host: "0.0.0.0"
+  port: 3000
+  # Secret key per firmare i cookie di sessione Flask.
+  # In produzione: SEMPRE da env var NETGOLF_SECRET_KEY.
+  # Qui c'è solo un default per sviluppo locale.
+  secret_key_env: NETGOLF_SECRET_KEY
+  secret_key_default: "dev-only-change-me-in-production"
+
+database:
+  # SQLite locale. Il path è relativo alla root del progetto.
+  url: "sqlite:////app/data/runtime/netgolf.db"
+  # Se true, all'avvio crea le tabelle se non esistono (comodo in dev).
+  auto_create: true
+
+i18n:
+  default_locale: it
+  supported_locales: [it, en]
+  # Il locale scelto dall'utente viene salvato in un cookie.
+  cookie_name: netgolf_lang
+  cookie_max_age_days: 365
+  # Parametro querystring per switch on-the-fly
+  query_param: lang
+
+security:
+  # Argon2id per hashing password NETGOLF. Parametri tarati per un buon
+  # trade-off sicurezza/CPU su hardware moderno (~50-100ms per hash).
+  argon2:
+    time_cost: 3
+    memory_cost: 65536   # 64 MB
+    parallelism: 4
+    hash_len: 32
+    salt_len: 16
+
+  # Master key (32 byte base64-url) per cifrare le password FIG a riposo
+  # (AES-GCM). SEMPRE da env var: se manca il server non parte.
+  master_key_env: NETGOLF_MASTER_KEY
+
+  session:
+    lifetime_minutes: 120
+    # Se true, cookie di sessione solo su HTTPS (metti true in prod)
+    cookie_secure: false
+    cookie_httponly: true
+    cookie_samesite: Lax
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Client area riservata FederGolf
+# Qui stanno gli URL, i selettori CSS/regex di parsing, i timeout.
+# Se il sito FIG cambia struttura, si modifica QUESTA sezione, non il Python.
+# ─────────────────────────────────────────────────────────────────────────────
+fig:
+  base_url: "https://areariservata.federgolf.it"
+
+  user_agent: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15"
+  accept_language: "it-IT,it;q=0.9,en;q=0.8"
+  timeout_sec: 15
+
+  endpoints:
+    login_page:       "/Home/Login"
+    login_fallback:   "/Home/AuthenticateUser"   # usato se il form action non è estraibile
+    anagrafica_grid:  "/AnagraficaTesserati/ShowGrid"
+    view_detail:      "/AnagraficaTesserati/ViewDetail/{uuid}"
+    risultati_grid:   "/Risultati/ShowGrid"
+
+  login:
+    # Nomi dei campi POST del form di login
+    user_field: "User"
+    password_field: "Password"
+    csrf_field: "__RequestVerificationToken"
+    # Cookie che identifica una sessione autenticata (quando esiste => login OK)
+    session_cookie: "ASP.NET_SessionId"
+
+  # Regex per identificare una pagina "login fallito" (200 OK ma non autenticato)
+  login_failed_markers:
+    - "/Home/AuthenticateUser"
+    - "Immettere le credenziali"
+
+  # Dove estrarre il messaggio di errore quando il login fallisce
+  error_message_patterns:
+    - 'field-validation-error[^>]*>([^<]{5,200})'
+    - 'text-danger[^>]*>([^<]{5,200})'
+    - 'alert-danger[^>]*>([^<]{5,200})'
+
+  # Regex per estrarre UUID dalla ShowGrid (usato per poi chiamare ViewDetail)
+  uuid_pattern: '/AnagraficaTesserati/ViewDetail/([a-f0-9\-]{36})'
+
+  # Regex di parsing del profilo. Ognuna produce un campo del dict profile.
+  # Le ho estratte 1:1 da parseProfile + dall'endpoint /api/profilo di server.js
+  # (quello nuovo, che lavora sul plain-text della ViewDetail).
+  profile_patterns:
+    cognome:        'Cognome\s*\*\s*(\S+)'
+    nome:           '\bNome\s*\*\s*(\S+)'
+    tessera:        'Numero tessera\s*(\d+)'
+    data_nascita:   'Data Nascita\s*\*\s*(\d{2}/\d{2}/\d{4})'
+    codice_fiscale: 'Codice fiscale\s*\*\s*([A-Z0-9]{16})'
+    email:          'E-mail\s*\*\s*(\S+@\S+)'
+    cellulare:      'Cellulare\s*(\d[\d\s]{6,15})'
+    data_rinnovo:   'Data ultimo rinnovo\s*(\d{2}/\d{2}/\d{4})'
+    data_rilascio_cm: 'Data rilascio certificato medico\s*(\d{2}/\d{2}/\d{4})'
+    scadenza_cm:    'Scadenza certificato medico\s*(\d{2}/\d{2}/\d{4})'
+    handicap_index: 'Handicap Index\s*([\d.,]+)'
+    low_hcp_index:  'Low Handicap Index\s*([\d.,]+)'
+    cap:            'CAP\s*\*?\s*(\d{5})'
+
+  # Campi "dopo la label fino alla prossima parola con maiuscola".
+  # Vengono estratti con la stessa logica di grabAfter() di server.js.
+  profile_labels:
+    - qualifica
+    - circolo
+    - zona
+    - arbitro
+    - dirigente
+    - sesso
+    - luogo_di_nascita
+    - cittadinanza
+    - telefono_ufficio
+    - stato_tessera
+    - tipologia_associazione
+    - certificato_medico
+    - sottotipo_tesseramento
+    - tipo_tesserato
+    - indirizzo
+    - citta
+    - provincia
+    - regione
+    - privacy
+    - data_privacy
+
+  storico:
+    # Paginazione: parametri da provare per scoprire quale usa FIG
+    pagination_params: [page, Page, pageIndex, pageNumber, skip, start]
+    max_pages: 50
+    retry_on_500: true
+    retry_delay_sec: 2
+    rows_per_page: 100
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Client GesGolf (per scaricare scorecard buca per buca di una gara)
+# ─────────────────────────────────────────────────────────────────────────────
+gesgolf:
+  base_url: "https://www.gesgolf.it/GolfOnline/Clubs"
+  user_agent: "Mozilla/5.0 (compatible)"
+  timeout_sec: 10
+
+  endpoints:
+    gare:          "/gare.aspx"
+    classifiche:   "/classifiche.aspx"
+    score_persona: "/ScorePersona.aspx"
+    clubs_index:   "/Index.aspx"
+
+  # ASP.NET WebForms: i dropdown usano __EVENTTARGET/__EVENTARGUMENT con questi ID
+  form_targets:
+    anno: "ctl00$ContentPlaceHolder1$ddlAnno"
+    mese: "ctl00$ContentPlaceHolder1$ddlMese"
+
+  # Nota: la mappa nome_circolo → circolo_id sta in data/circoli_gesgolf.csv
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Logging degli accessi
+# Nel vecchio server c'era persistenza via GitHub API. La manteniamo opzionale
+# (disabilitata di default), perché ora i log vivono nel DB SQLite.
+# ─────────────────────────────────────────────────────────────────────────────
+access_log:
+  max_entries: 1000
+  # Fuso orario usato per "data" e "ora" leggibili negli entry
+  timezone: "Europe/Rome"
+
+  github_persist:
+    enabled: false
+    repo_env:  GITHUB_REPO
+    token_env: GITHUB_TOKEN
+    path: "data/access_log.json"
+    debounce_sec: 5
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Admin panel
+# ─────────────────────────────────────────────────────────────────────────────
+admin:
+  # Token per accedere agli endpoint admin (via query ?token=...).
+  # Identico al vecchio ADMIN_TOKEN di server.js ma ORA davvero letto da env.
+  token_env: NETGOLF_ADMIN_TOKEN
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Percorsi file CSV/JSON parametrici
+# ─────────────────────────────────────────────────────────────────────────────
+data_files:
+  circoli_gesgolf: "data/circoli_gesgolf.csv"
+  hcp_bands:       "data/hcp_bands.csv"
+  frasi_obiettivo: "data/frasi_obiettivo.csv"
+  campi_slope_cr:  "data/campi_slope_cr.json"

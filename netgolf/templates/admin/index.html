@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+{% block title %}{{ _('Admin') }} — NETGOLF{% endblock %}
+
+{% block head %}
+<style>
+  .admin-wrap { max-width: 1200px; margin: 0 auto; padding: 24px; }
+  .admin-wrap h1 { font-family: 'DM Mono', monospace; letter-spacing: 3px; color: #e8c96d; margin-bottom: 20px; }
+  .stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 24px; }
+  .stat-card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07); border-radius: 12px; padding: 16px; }
+  .stat-card .val { font-family: 'DM Mono', monospace; font-size: 28px; color: #e8c96d; font-weight: 500; }
+  .stat-card .lbl { font-size: 11px; color: #a0a8a0; margin-top: 4px; letter-spacing: 1px; text-transform: uppercase; }
+  .section-title { font-size: 11px; color: #c9a84c; letter-spacing: 2px; text-transform: uppercase; font-family: 'DM Mono', monospace; margin-bottom: 12px; margin-top: 24px; }
+  .log-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .log-table th { text-align: left; padding: 10px 12px; font-size: 10px; color: #c9a84c; letter-spacing: 1.5px; text-transform: uppercase; font-family: 'DM Mono', monospace; border-bottom: 1px solid rgba(255,255,255,0.06); font-weight: 400; }
+  .log-table td { padding: 11px 12px; border-bottom: 1px solid rgba(255,255,255,0.04); vertical-align: middle; }
+  .log-table tr:hover td { background: rgba(255,255,255,0.03); }
+  .log-table tr.fail td { opacity: 0.6; }
+  .badge { display: inline-block; font-size: 10px; font-family: 'DM Mono', monospace; padding: 2px 8px; border-radius: 10px; }
+  .badge.ok { background: rgba(76,175,80,0.2); color: #81c784; }
+  .badge.fail { background: rgba(229,115,115,0.2); color: #ef9a9a; }
+  .mono { font-family: 'DM Mono', monospace; font-size: 12px; color: #a0a8a0; }
+  .filter-row { display: flex; gap: 10px; margin-bottom: 14px; align-items: center; flex-wrap: wrap; }
+  .filter-row input, .filter-row select { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 8px 12px; color: white; font-family: 'DM Sans', sans-serif; font-size: 13px; outline: none; }
+  .refresh-btn { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 8px 14px; color: #a0a8a0; cursor: pointer; font-size: 13px; font-family: 'DM Sans', sans-serif; margin-left: auto; }
+  .table-wrap { overflow-x: auto; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="admin-wrap">
+  <h1>NETGOLF ADMIN</h1>
+  <span id="admin-ts" class="mono"></span>
+
+  <div class="stats-row">
+    <div class="stat-card"><div class="val" id="stat-total">—</div><div class="lbl">{{ _('Accessi totali') }}</div></div>
+    <div class="stat-card"><div class="val" id="stat-ok">—</div><div class="lbl">{{ _('Login riusciti') }}</div></div>
+    <div class="stat-card"><div class="val" id="stat-fail">—</div><div class="lbl">{{ _('Login falliti') }}</div></div>
+    <div class="stat-card"><div class="val" id="stat-users">—</div><div class="lbl">{{ _('Utenti registrati') }}</div></div>
+  </div>
+
+  <div class="section-title">{{ _('Utenti') }}</div>
+  <div class="table-wrap">
+    <table class="log-table">
+      <thead>
+        <tr>
+          <th>{{ _('Email') }}</th>
+          <th>{{ _('Lingua') }}</th>
+          <th>{{ _('FIG') }}</th>
+          <th>{{ _('Admin') }}</th>
+          <th>{{ _('Creato') }}</th>
+          <th>{{ _('Ultimo login') }}</th>
+        </tr>
+      </thead>
+      <tbody id="users-tbody"></tbody>
+    </table>
+  </div>
+
+  <div class="section-title">{{ _('Log accessi') }}</div>
+  <div class="filter-row">
+    <input type="text" id="filter-email" placeholder="{{ _('Filtra email...') }}" oninput="renderLog()">
+    <select id="filter-esito" onchange="renderLog()">
+      <option value="">{{ _('Tutti') }}</option>
+      <option value="ok">{{ _('Solo riusciti') }}</option>
+      <option value="fail">{{ _('Solo falliti') }}</option>
+    </select>
+    <select id="filter-event" onchange="renderLog()">
+      <option value="">{{ _('Tutti gli eventi') }}</option>
+      <option value="login_netgolf">login_netgolf</option>
+      <option value="register">register</option>
+      <option value="logout">logout</option>
+    </select>
+    <button class="refresh-btn" onclick="loadData()">↻ {{ _('Aggiorna') }}</button>
+  </div>
+  <div class="table-wrap">
+    <table class="log-table">
+      <thead>
+        <tr>
+          <th>{{ _('Data / ora') }}</th>
+          <th>{{ _('Evento') }}</th>
+          <th>{{ _('Email') }}</th>
+          <th>{{ _('IP') }}</th>
+          <th>{{ _('User agent') }}</th>
+          <th>{{ _('Esito') }}</th>
+          <th>{{ _('Dettaglio') }}</th>
+        </tr>
+      </thead>
+      <tbody id="log-tbody"></tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let logData = [];
+
+async function loadData() {
+  try {
+    const [logR, usersR] = await Promise.all([
+      fetch('{{ url_for("admin.log") }}'),
+      fetch('{{ url_for("admin.users") }}'),
+    ]);
+    if (logR.status === 401 || usersR.status === 401) {
+      window.location.href = '{{ url_for("auth.login") }}';
+      return;
+    }
+    const log = await logR.json();
+    const users = await usersR.json();
+
+    document.getElementById('admin-ts').textContent =
+      '{{ _("Aggiornato:") }} ' + new Date().toLocaleTimeString('it-IT');
+
+    logData = log.entries || [];
+    const ok = logData.filter(e => e.success).length;
+    document.getElementById('stat-total').textContent = log.count;
+    document.getElementById('stat-ok').textContent = ok;
+    document.getElementById('stat-fail').textContent = log.count - ok;
+    document.getElementById('stat-users').textContent = (users.users || []).length;
+
+    renderUsers(users.users || []);
+    renderLog();
+  } catch(e) {
+    console.error('admin loadData:', e);
+  }
+}
+
+function renderUsers(users) {
+  const tbody = document.getElementById('users-tbody');
+  if (!users.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:16px;color:#a0a8a0">—</td></tr>';
+    return;
+  }
+  tbody.innerHTML = users.map(u => `
+    <tr>
+      <td><strong>${escapeHtml(u.email)}</strong></td>
+      <td class="mono">${u.locale || ''}</td>
+      <td>${u.has_fig ? '<span class="badge ok">✓</span>' : '—'}</td>
+      <td>${u.is_admin ? '<span class="badge ok">admin</span>' : '—'}</td>
+      <td class="mono">${fmtDate(u.created_at)}</td>
+      <td class="mono">${fmtDate(u.last_login_at)}</td>
+    </tr>
+  `).join('');
+}
+
+function renderLog() {
+  const fEmail = document.getElementById('filter-email').value.toLowerCase();
+  const fEsito = document.getElementById('filter-esito').value;
+  const fEvent = document.getElementById('filter-event').value;
+  let rows = logData;
+  if (fEmail) rows = rows.filter(e => (e.email || '').toLowerCase().includes(fEmail));
+  if (fEsito === 'ok') rows = rows.filter(e => e.success);
+  if (fEsito === 'fail') rows = rows.filter(e => !e.success);
+  if (fEvent) rows = rows.filter(e => e.event === fEvent);
+
+  const tbody = document.getElementById('log-tbody');
+  tbody.innerHTML = rows.length
+    ? rows.map(e => `
+      <tr class="${e.success ? '' : 'fail'}">
+        <td class="mono">${fmtDate(e.ts)}</td>
+        <td class="mono">${escapeHtml(e.event || '')}</td>
+        <td>${escapeHtml(e.email || '—')}</td>
+        <td class="mono">${escapeHtml(e.ip || '—')}</td>
+        <td class="mono" style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escapeHtml(e.user_agent || '')}">${escapeHtml((e.user_agent || '').slice(0,40))}</td>
+        <td><span class="badge ${e.success ? 'ok' : 'fail'}">${e.success ? '✓' : '✗'}</span></td>
+        <td class="mono">${escapeHtml(e.reason || '')}</td>
+      </tr>
+    `).join('')
+    : '<tr><td colspan="7" style="text-align:center;padding:20px;color:#a0a8a0">{{ _("Nessun accesso registrato") }}</td></tr>';
+}
+
+function fmtDate(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleDateString('it-IT') + ' ' + d.toLocaleTimeString('it-IT', {hour:'2-digit', minute:'2-digit'});
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+loadData();
+</script>
+{% endblock %}

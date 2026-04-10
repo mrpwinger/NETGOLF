@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="{{ get_locale() }}">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}NETGOLF{% endblock %}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='netgolf.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='dashboard.css') }}">
+  {% block head %}{% endblock %}
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="{{ url_for('main.index') }}">NETGOLF</a>
+
+    <nav class="topnav">
+      {% if current_user.is_authenticated %}
+
+        {% if current_user.is_admin %}
+          <a href="{{ url_for('admin.index') }}" class="topnav-link">{{ _('Admin') }}</a>
+        {% endif %}
+
+        <div class="user-menu" id="userMenu">
+          <button class="user-menu-trigger" type="button" onclick="document.getElementById('userMenu').classList.toggle('open')">
+            <span class="user-menu-avatar">{{ (current_user.email or '?')[0]|upper }}</span>
+            <span class="user-menu-name">{{ current_user.email.split('@')[0] }}</span>
+            <span class="user-menu-arrow"></span>
+          </button>
+          <div class="user-menu-dropdown">
+            <a href="{{ url_for('main.dashboard') }}">{{ _('Dashboard') }}</a>
+            <a href="{{ url_for('auth.profilo') }}">{{ _('Profilo') }}</a>
+            <div class="divider"></div>
+            <a href="{{ url_for('auth.logout') }}" class="logout">{{ _('Esci') }}</a>
+          </div>
+        </div>
+
+      {% else %}
+        <a href="{{ url_for('auth.login') }}" class="topnav-link">{{ _('Accedi') }}</a>
+        <a href="{{ url_for('auth.register') }}" class="topnav-link">{{ _('Registrati') }}</a>
+      {% endif %}
+
+      <span class="lang-switch">
+        {% for code in config['NETGOLF'].raw.i18n.supported_locales %}
+          {% if code == get_locale() %}
+            <strong>{{ code|upper }}</strong>
+          {% else %}
+            <a href="{{ url_for('auth.set_language', lang=code) }}">{{ code|upper }}</a>
+          {% endif %}
+        {% endfor %}
+      </span>
+    </nav>
+  </header>
+
+  <main class="content">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="flash-container">
+          {% for cat, msg in messages %}
+            <div class="flash flash-{{ cat }}">{{ msg }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="footer">
+    NETGOLF v{{ config['NETGOLF'].raw.app.version }}
+  </footer>
+
+  <script>
+    // Chiudi dropdown user-menu se clicchi fuori
+    document.addEventListener('click', function(e) {
+      const um = document.getElementById('userMenu');
+      if (um && !um.contains(e.target)) {
+        um.classList.remove('open');
+      }
+    });
+  </script>
+
+  {% block scripts %}{% endblock %}
+</body>
+</html>

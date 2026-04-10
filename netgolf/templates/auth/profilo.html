@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}{{ _('Profilo') }} — NETGOLF{% endblock %}
+{% block content %}
+<section class="profile">
+  <h1>{{ _('Profilo') }}</h1>
+
+  <div class="profile-card">
+    <h2>{{ _('Account NETGOLF') }}</h2>
+    <div class="kv"><span>{{ _('Email') }}</span><strong>{{ current_user.email }}</strong></div>
+    <div class="kv"><span>{{ _('Lingua') }}</span><strong>{{ current_user.locale|upper }}</strong></div>
+    <div class="kv"><span>{{ _('Membro dal') }}</span><strong>{{ current_user.created_at.strftime('%d/%m/%Y') if current_user.created_at }}</strong></div>
+  </div>
+
+  <div class="profile-card">
+    <h2>{{ _('Credenziali area riservata FIG') }}</h2>
+    <p class="hint">
+      {{ _('Sono opzionali. Servono solo se vuoi che NETGOLF scarichi automaticamente profilo e storico risultati dall\'area riservata FederGolf. La password viene cifrata prima di essere salvata.') }}
+    </p>
+
+    {% if current_user.fig_credential %}
+      <div class="status status-ok">
+        {{ _('Credenziali FIG configurate per la tessera %(t)s', t=current_user.fig_credential.tessera) }}
+      </div>
+    {% else %}
+      <div class="status status-warn">
+        {{ _('Nessuna credenziale FIG configurata. Alcune funzioni (profilo, storico, scorecard) non saranno disponibili finché non le configuri.') }}
+      </div>
+    {% endif %}
+
+    <form method="post" novalidate>
+      {{ form.hidden_tag() }}
+
+      <div class="field">
+        {{ form.tessera.label() }}
+        {{ form.tessera(class="input", placeholder="es. 154510") }}
+        {% for err in form.tessera.errors %}<div class="err">{{ err }}</div>{% endfor %}
+      </div>
+
+      <div class="field">
+        {{ form.password_fig.label() }}
+        {{ form.password_fig(class="input", autocomplete="off", placeholder=_('Lascia vuoto per non modificarla')) }}
+        {% for err in form.password_fig.errors %}<div class="err">{{ err }}</div>{% endfor %}
+      </div>
+
+      {% if current_user.fig_credential %}
+        <div class="field-inline">
+          {{ form.remove() }} {{ form.remove.label() }}
+        </div>
+      {% endif %}
+
+      {{ form.submit(class="btn btn-primary") }}
+    </form>
+  </div>
+</section>
+{% endblock %}
