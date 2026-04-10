@@ -16,6 +16,7 @@ master key del server (vedi crypto.FigCredentialCipher).
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime
 
 from flask import (
@@ -36,6 +37,14 @@ from ..db import db
 from ..models import AccessLog, FigCredential, User
 from . import bp
 from .forms import FigCredentialsForm, LoginForm, RegisterForm
+
+
+# Logger dedicato agli eventi di accesso. I suoi messaggi vengono
+# intercettati dal RotatingFileHandler configurato in netgolf/__init__.py
+# e scritti su /app/data/runtime/access.log. Se il file handler non è
+# configurato (es. boot in dev), i messaggi si perdono silenziosamente —
+# il DB resta comunque la fonte di verità.
+_access_log = logging.getLogger("netgolf.access")
 
 
 # ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -80,20 +89,24 @@ def _log_event(event: str, success: bool, reason: str | None, user: User | None,
             db.session.execute(
                 db.delete(AccessLog).where(AccessLog.id.in_(old_ids))
             )
-    
-# Loggalo anche sul file di testo (oltre al DB)
-    import logging as _lg
-    _lg.getLogger("netgolf.access").info(
-        "%s  %s  %s  email=%s  ip=%s  ua=%r  reason=%s",
-        event,
-        "OK " if success else "FAIL",
-        f"user_id={user.id}" if user else "user_id=-",
-        email or "-",
-        request.remote_addr or "-",
-        (request.user_agent.string or "-")[:80],
-        reason or "-",
-    )  
-db.session.commit()
+    db.session.commit()
+
+    # Scrivi anche sul file di log (oltre al DB). Non blocca mai il flusso:
+    # se il logger non è configurato o il filesystem è read-only, il
+    # messaggio si perde silenziosamente senza rompere la request.
+    try:
+        _access_log.info(
+            "%s  %s  %s  email=%s  ip=%s  ua=%r  reason=%s",
+            event,
+            "OK  " if success else "FAIL",
+            f"user_id={user.id}" if user else "user_id=-",
+            email or (user.email if user else "-"),
+            _client_ip(),
+            (request.headers.get("User-Agent", "-"))[:80],
+            reason or "-",
+        )
+    except Exception:
+        pass
 
 
 # ─── Register ────────────────────────────────────────────────────────────────
