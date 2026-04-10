@@ -1439,6 +1439,23 @@ document.getElementById('btn-debug').addEventListener('click', async () => {
 document.getElementById('export-hcp-csv').addEventListener('click', () => exportHcpCSV());
 document.getElementById('export-pdf').addEventListener('click', () => exportPDF());
 
+// Tessera HCP NETGOLF: apre la pagina /tessera in una nuova tab.
+// Il server fa fetch fresco del profilo FIG e renderizza la tessera; da lì
+// l'utente fa Cmd+P / Ctrl+P per salvarla in PDF.
+const _btnTessera = document.getElementById('export-tessera');
+if (_btnTessera) _btnTessera.addEventListener('click', () => {
+  // Prima di aprire, verifichiamo che ci sia uno user caricato. Se non c'è,
+  // probabilmente il caricamento dati FIG non è ancora finito o è fallito:
+  // in entrambi i casi conviene non andare avanti, perché il backend
+  // chiederebbe comunque le credenziali FIG e se mancano restituirebbe un 400.
+  if (!state.user || !state.user.profile) {
+    alert('Profilo FIG non ancora caricato. Riprova tra qualche secondo.');
+    return;
+  }
+  window.open('/tessera', '_blank', 'noopener');
+});
+ 
+
 function exportCSV() {
   if (!state.results.length) return alert('Nessun dato da esportare.');
   const rows = [['Data','Gara','Esecutore','Formula','Buche','Valida','Playing HCP','Stbl','AGS','PCC','SD','Corr','Index Vecchio','Index Nuovo','Variazione']];
