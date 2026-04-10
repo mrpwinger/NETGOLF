@@ -95,110 +95,73 @@ def users():
     )
 
 
-@bp.get("/db-inspect")
-def db_inspect():
+@bp.get("/access-log/tail")
+def access_log_tail():
     """
-    Endpoint diagnostico TEMPORANEO.
-    Restituisce un dump dello stato del database: dove vive il file SQLite,
-    quanto pesa, quante righe per tabella, sample utenti/credenziali/log.
-    Serve per verificare che il volume Railway stia persistendo davvero.
-    DA RIMUOVERE dopo aver finito di debuggare.
+    Restituisce le ultime N righe del file access.log come JSON.
+    Default 100 righe, max 1000.
     """
-    # Check admin inline (no decoratore, per evitare conflitti di import)
     if not current_user.is_authenticated:
         return jsonify(error="not authenticated"), 401
     if not getattr(current_user, "is_admin", False):
         return jsonify(error="not admin"), 403
 
-    # ── Dove vive davvero il file SQLite ─────────────────────────────
+    n = min(int(request.args.get("n", 100)), 1000)
     db_path = str(db.engine.url.database)
-    db_size = 0
-    if db_path and os.path.exists(db_path):
-        try:
-            db_size = os.path.getsize(db_path)
-        except Exception as e:
-            db_size = f"error: {e}"
+    log_path = os.path.join(os.path.dirname(db_path), "access.log")
 
-    # ── Listing della directory che contiene il DB ───────────────────
-    db_dir = os.path.dirname(db_path) if db_path else None
-    dir_listing = []
-    dir_error = None
-    if db_dir and os.path.exists(db_dir):
-        try:
-            for name in os.listdir(db_dir):
-                full = os.path.join(db_dir, name)
-                try:
-                    is_file = os.path.isfile(full)
-                    sz = os.path.getsize(full) if is_file else None
-                except Exception:
-                    is_file, sz = False, None
-                dir_listing.append({"name": name, "size": sz, "is_file": is_file})
-        except Exception as e:
-            dir_error = str(e)
-    else:
-        dir_error = "directory non esistente"
+    if not os.path.exists(log_path):
+        return jsonify(
+            file=log_path,
+            exists=False,
+            lines=[],
+            error="file non trovato (forse nessun evento è stato loggato ancora)",
+        )
 
-    # ── Conteggi per tabella ─────────────────────────────────────────
     try:
-        user_count = User.query.count()
+        with open(log_path, "r", encoding="utf-8", errors="replace") as f:
+            all_lines = f.readlines()
+        last = all_lines[-n:] if len(all_lines) > n else all_lines
+        return jsonify(
+            file=log_path,
+            exists=True,
+            total_lines=len(all_lines),
+            returned_lines=len(last),
+            size_bytes=os.path.getsize(log_path),
+            lines=[line.rstrip("\n") for line in last],
+        )
     except Exception as e:
-        user_count = f"error: {e}"
-    try:
-        fig_count = FigCredential.query.count()
-    except Exception as e:
-        fig_count = f"error: {e}"
-    try:
-        log_count = AccessLog.query.count()
-    except Exception as e:
-        log_count = f"error: {e}"
+        return jsonify(file=log_path, error=str(e)), 500
 
-    # ── Sample utenti (solo campi sicuri) ────────────────────────────
-    users_dump = []
-    try:
-        for u in User.query.order_by(User.id).limit(20):
-            users_dump.append({
-                "id": u.id,
-                "email": u.email,
-                "is_admin": bool(u.is_admin),
-            })
-    except Exception as e:
-        users_dump = [{"error": str(e)}]
 
-    # ── Sample credenziali FIG (no PK 'id', usa user_id) ─────────────
-    fig_creds = []
-    try:
-        for f in FigCredential.query.limit(20):
-            fig_creds.append({
-                "user_id": f.user_id,
-                "username_fig": f.username,
-                "has_ciphertext": bool(f.password_ciphertext),
-            })
-    except Exception as e:
-        fig_creds = [{"error": str(e)}]
+@bp.get("/access-log/download")
+def access_log_download():
+    """
+    Scarica il file access.log intero come text/plain.
+    Utile per analisi offline (grep, awk, ecc.).
+    """
+    from flask import Response
 
-    # ── Ultimi 10 access log ─────────────────────────────────────────
-    logs = []
-    try:
-        for l in AccessLog.query.order_by(AccessLog.id.desc()).limit(10):
-            logs.append({
-                "ts": str(l.ts) if l.ts else None,
-                "event": l.event,
-                "email": l.email,
-                "success": bool(l.success),
-            })
-    except Exception as e:
-        logs = [{"error": str(e)}]
+    if not current_user.is_authenticated:
+        return Response("not authenticated", status=401)
+    if not getattr(current_user, "is_admin", False):
+        return Response("not admin", status=403)
 
-    return jsonify({
-        "db_path": db_path,
-        "db_dir": db_dir,
-        "db_size_bytes": db_size,
-        "db_dir_listing": dir_listing,
-        "db_dir_error": dir_error,
-        "user_count": user_count,
-        "fig_credential_count": fig_count,
-        "access_log_count": log_count,
-        "users": users_dump,
-        "fig_credentials": fig_creds,
-        "last_10_logs": logs,
-    })
+    db_path = str(db.engine.url.database)
+    log_path = os.path.join(os.path.dirname(db_path), "access.log")
+
+    if not os.path.exists(log_path):
+        return Response("access.log non esiste ancora", status=404, mimetype="text/plain")
+
+    try:
+        with open(log_path, "r", encoding="utf-8", errors="replace") as f:
+            content = f.read()
+        return Response(
+            content,
+            mimetype="text/plain",
+            headers={
+                "Content-Disposition": "attachment; filename=netgolf-access.log",
+            },
+        )
+    except Exception as e:
+        return Response(f"errore lettura: {e}", status=500, mimetype="text/plain")
