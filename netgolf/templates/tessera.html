@@ -1,0 +1,281 @@
+{# ──────────────────────────────────────────────────────────────────────────
+   netgolf/templates/tessera.html
+
+   Pagina "stampabile" che mostra la tessera HCP NETGOLF e basta. L'utente
+   apre /tessera, vede la tessera, e usa Cmd+P / Ctrl+P per salvarla in PDF.
+
+   La pagina è auto-contenuta: niente import di dashboard.css, niente JS,
+   nessuna dipendenza. Funziona anche stampandola da mobile.
+
+   Variabili attese dal context:
+     - nome_completo (str)         es. "STEFANO PAGLIARINI"
+     - tessera       (str)         es. "154510"
+     - hcp_index     (str)         es. "24.2"
+     - anno          (int)         es. 2026
+     - generato_il   (str)         es. "10/04/2026 17:48 (Europe/Rome)"
+   ──────────────────────────────────────────────────────────────────────── #}
+<!DOCTYPE html>
+<html lang="{{ get_locale() if get_locale else 'it' }}">
+<head>
+  <meta charset="UTF-8">
+  <title>{{ _("Tessera HCP NETGOLF") }} — {{ nome_completo }}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    /* Stessa palette di dashboard.css, copiata qui per renderla autonoma */
+    :root {
+      --green-deep:   #071a10;
+      --green-mid:    #0A5C36;
+      --green-bright: #0d7a46;
+      --green-accent: #00FF66;
+      --green-light:  #00cc52;
+      --navy:         #112240;
+      --cream:        #f0faf5;
+      --white:        #ffffff;
+      --gray-soft:    #6b8c7a;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: linear-gradient(150deg, #071a10 0%, #0a2a1a 40%, #112240 100%);
+      color: var(--cream);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 20px;
+    }
+
+    /* ── La tessera ──────────────────────────────────────────────────── */
+    .tessera {
+      /* Proporzioni simili a quella FIG: ~700x440 → 1.59:1 */
+      width: 700px;
+      max-width: 100%;
+      aspect-ratio: 700 / 440;
+      border-radius: 22px;
+      position: relative;
+      overflow: hidden;
+      background:
+        linear-gradient(135deg, var(--green-mid) 0%, var(--green-bright) 50%, #094628 100%);
+      box-shadow:
+        0 30px 60px rgba(0, 0, 0, 0.5),
+        0 0 0 1px rgba(0, 255, 102, 0.15),
+        inset 0 1px 0 rgba(255, 255, 255, 0.08);
+      color: var(--white);
+      padding: 36px 40px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    /* Pattern decorativo: linee diagonali traslucide come sulla tessera FIG.
+       Realizzato con repeating-linear-gradient così resta vettoriale e nitido
+       in stampa, senza dipendere da immagini bitmap. */
+    .tessera::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        repeating-linear-gradient(
+          135deg,
+          transparent 0px,
+          transparent 40px,
+          rgba(255, 255, 255, 0.04) 40px,
+          rgba(255, 255, 255, 0.04) 80px
+        ),
+        repeating-linear-gradient(
+          45deg,
+          transparent 0px,
+          transparent 60px,
+          rgba(0, 255, 102, 0.05) 60px,
+          rgba(0, 255, 102, 0.05) 120px
+        );
+      pointer-events: none;
+    }
+
+    /* Glow neon nell'angolo in alto a destra */
+    .tessera::after {
+      content: '';
+      position: absolute;
+      top: -80px;
+      right: -80px;
+      width: 280px;
+      height: 280px;
+      background: radial-gradient(circle, rgba(0, 255, 102, 0.18) 0%, transparent 70%);
+      border-radius: 50%;
+      pointer-events: none;
+    }
+
+    /* Header: anno + logo */
+    .tessera-header {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 20px;
+    }
+
+    .tessera-anno {
+      font-family: 'DM Sans', sans-serif;
+      font-weight: 700;
+      font-size: 14px;
+      letter-spacing: 3px;
+      color: var(--white);
+      padding-top: 4px;
+    }
+
+    /* Logo NETGOLF — wordmark SVG inline, senza icona */
+    .tessera-logo {
+      display: block;
+      height: 56px;
+      width: auto;
+      filter: drop-shadow(0 0 20px rgba(0, 255, 102, 0.45));
+    }
+
+    /* Footer: nome + dati identificativi + data generazione */
+    .tessera-body {
+      position: relative;
+      z-index: 1;
+    }
+
+    .tessera-nome {
+      font-family: 'DM Sans', sans-serif;
+      font-weight: 700;
+      font-size: 30px;
+      letter-spacing: 1px;
+      color: var(--white);
+      text-transform: uppercase;
+      margin-bottom: 12px;
+      line-height: 1.1;
+    }
+
+    .tessera-info {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 16px;
+      color: var(--cream);
+      letter-spacing: 0.3px;
+      margin-bottom: 6px;
+    }
+
+    .tessera-info strong {
+      color: var(--green-accent);
+      font-weight: 700;
+    }
+
+    .tessera-generato {
+      font-family: 'DM Mono', 'SF Mono', Consolas, monospace;
+      font-size: 11px;
+      color: rgba(240, 250, 245, 0.7);
+      letter-spacing: 0.5px;
+      margin-top: 4px;
+    }
+
+    /* ── Azioni fuori dalla tessera (non stampate) ───────────────────── */
+    .actions {
+      margin-top: 32px;
+      display: flex;
+      gap: 12px;
+    }
+
+    .actions button,
+    .actions a {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(0, 255, 102, 0.3);
+      color: var(--cream);
+      padding: 12px 20px;
+      border-radius: 10px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.15s;
+    }
+
+    .actions button:hover,
+    .actions a:hover {
+      background: rgba(0, 255, 102, 0.12);
+      border-color: var(--green-accent);
+    }
+
+    .actions .btn-print {
+      background: linear-gradient(135deg, var(--green-mid), var(--green-accent));
+      border-color: var(--green-accent);
+      color: var(--white);
+      font-weight: 500;
+    }
+
+    /* ── Stampa: nascondi tutto tranne la tessera ────────────────────── */
+    @media print {
+      @page {
+        size: A4 landscape;
+        margin: 20mm;
+      }
+      body {
+        background: white !important;
+        padding: 0;
+        display: block;
+      }
+      .actions { display: none !important; }
+      .tessera {
+        width: 100%;
+        max-width: 240mm;
+        margin: 0 auto;
+        box-shadow: none;
+        border: 1px solid rgba(0, 0, 0, 0.15);
+        /* Forza il rendering dei colori di sfondo in stampa (Chrome/Safari) */
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <article class="tessera" aria-label="{{ _('Tessera handicap NETGOLF') }}">
+    <header class="tessera-header">
+      <div class="tessera-anno">{{ _("ANNO") }} {{ anno }}</div>
+
+      {# ── Logo NETGOLF: SVG inline, wordmark senza icona ─────────────
+         Font system, peso 800, lettering allargato, accent neon sotto la N
+         finale. Tutto vettoriale: nessun file esterno da caricare. #}
+      <svg class="tessera-logo"
+           viewBox="0 0 320 56"
+           xmlns="http://www.w3.org/2000/svg"
+           role="img"
+           aria-label="NETGOLF">
+        <text x="0" y="40"
+              font-family="'DM Sans', system-ui, -apple-system, sans-serif"
+              font-size="40"
+              font-weight="800"
+              letter-spacing="4"
+              fill="#FFFFFF">NETGOLF</text>
+        {# accento neon: barretta sottile sotto tutto il wordmark #}
+        <rect x="0" y="48" width="270" height="3" rx="1.5" fill="#00FF66" opacity="0.7"/>
+      </svg>
+      </svg>
+    </header>
+
+    <div class="tessera-body">
+      <div class="tessera-nome">{{ nome_completo }}</div>
+      <div class="tessera-info">
+        {{ _("Tessera n.") }} <strong>{{ tessera }}</strong>
+        &nbsp;&nbsp;{{ _("Handicap Index") }}: <strong>{{ hcp_index }}</strong>
+      </div>
+      <div class="tessera-generato">
+        {{ _("Certificato generato il") }} {{ generato_il }}
+      </div>
+    </div>
+  </article>
+
+  <div class="actions">
+    <button class="btn-print" onclick="window.print()">
+      🖨 {{ _("Stampa / Salva PDF") }}
+    </button>
+    <a href="{{ url_for('main.dashboard') }}">← {{ _("Torna al dashboard") }}</a>
+  </div>
+
+</body>
+</html>
