@@ -1,0 +1,189 @@
+{# ──────────────────────────────────────────────────────────────────────────
+   netgolf/templates/scorecard/done.html
+
+   Pagina di conferma post-review. In Fase 1 mostra solo un riepilogo dei
+   dati confermati dall'utente. NESSUNA persistenza DB.
+
+   In Fase 2 questa pagina diventerà "Scorecard salvata" e i dati finiranno
+   nelle tabelle del DB di NETGOLF (modello Round, Hole, ecc).
+   ──────────────────────────────────────────────────────────────────────── #}
+<!DOCTYPE html>
+<html lang="{{ get_locale() if get_locale else 'it' }}">
+<head>
+  <meta charset="UTF-8">
+  <title>{{ _("Scorecard verificata") }} — NETGOLF</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --green-deep: #071a10; --green-mid: #0A5C36; --green-bright: #0d7a46;
+      --green-accent: #00FF66; --green-light: #00cc52;
+      --cream: #f0faf5; --white: #ffffff; --gray-soft: #6b8c7a;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: linear-gradient(150deg, #071a10 0%, #0a2a1a 40%, #112240 100%);
+      color: var(--cream);
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+    body { padding: 40px 16px; }
+    .container { max-width: 600px; margin: 0 auto; }
+
+    .success-icon {
+      font-size: 56px;
+      text-align: center;
+      margin-bottom: 12px;
+    }
+    h1 {
+      font-size: 26px;
+      font-weight: 800;
+      color: var(--white);
+      text-align: center;
+      margin-bottom: 8px;
+    }
+    .subtitle {
+      font-size: 13px;
+      color: var(--gray-soft);
+      text-align: center;
+      margin-bottom: 28px;
+      line-height: 1.6;
+    }
+
+    .summary {
+      background: rgba(10, 92, 54, 0.1);
+      border: 1px solid rgba(0, 255, 102, 0.2);
+      border-radius: 14px;
+      padding: 22px 24px;
+      margin-bottom: 24px;
+    }
+    .summary-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      font-size: 13px;
+    }
+    .summary-row:last-child { border-bottom: none; }
+    .summary-row .label { color: var(--gray-soft); }
+    .summary-row .value { color: var(--white); font-weight: 500; }
+    .summary-row .value.accent { color: var(--green-accent); }
+
+    .scores-line {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--cream);
+      background: rgba(0, 0, 0, 0.3);
+      padding: 14px 16px;
+      border-radius: 8px;
+      line-height: 1.8;
+      letter-spacing: 1px;
+      text-align: center;
+      margin-top: 16px;
+    }
+    .scores-line .x { color: #4d9fff; font-weight: 700; }
+
+    .note {
+      background: rgba(0, 255, 102, 0.06);
+      border: 1px solid rgba(0, 255, 102, 0.2);
+      border-radius: 12px;
+      padding: 14px 18px;
+      font-size: 12px;
+      line-height: 1.6;
+      color: var(--cream);
+      margin-bottom: 22px;
+    }
+
+    .actions {
+      display: flex;
+      gap: 12px;
+    }
+    .btn {
+      flex: 1;
+      padding: 14px 18px;
+      border-radius: 10px;
+      border: none;
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      text-decoration: none;
+      text-align: center;
+      display: inline-block;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--green-mid), var(--green-accent));
+      color: var(--white);
+    }
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: var(--cream);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <div class="success-icon">✅</div>
+    <h1>{{ _("Scorecard verificata") }}</h1>
+    <p class="subtitle">{{ _("I dati sono stati estratti e confermati. Riepilogo:") }}</p>
+
+    <div class="summary">
+      <div class="summary-row">
+        <span class="label">{{ _("Torneo") }}</span>
+        <span class="value">{{ data.torneo.nome or '—' }}</span>
+      </div>
+      <div class="summary-row">
+        <span class="label">{{ _("Data") }}</span>
+        <span class="value">{{ data.torneo.data_gara or '—' }}</span>
+      </div>
+      <div class="summary-row">
+        <span class="label">{{ _("Giocatore") }}</span>
+        <span class="value">{{ data.giocatore.nome_completo or '—' }}</span>
+      </div>
+      <div class="summary-row">
+        <span class="label">{{ _("Circolo") }}</span>
+        <span class="value">{{ data.campo.circolo or '—' }} — {{ data.campo.percorso or '' }}</span>
+      </div>
+      <div class="summary-row">
+        <span class="label">{{ _("Tee / CR / SR") }}</span>
+        <span class="value">{{ data.campo.tee_colore or '—' }} · {{ data.campo.cr_uomini or '?' }} / {{ data.campo.sr_uomini or '?' }}</span>
+      </div>
+      <div class="summary-row">
+        <span class="label">{{ _("HCP Index / Gioco") }}</span>
+        <span class="value accent">{{ data.handicap.hcp_index or '?' }} / {{ data.handicap.hcp_gioco or '?' }}</span>
+      </div>
+
+      <div class="scores-line">
+        {%- for b in data.buche -%}
+          {%- if b.score == 'X' -%}<span class="x">X</span>
+          {%- elif b.score is none -%}—
+          {%- else -%}{{ b.score }}
+          {%- endif -%}
+          {%- if not loop.last %} {% endif -%}
+        {%- endfor -%}
+      </div>
+    </div>
+
+    <div class="note">
+      ℹ {{ _("Per ora i dati sono solo verificati: nella prossima versione di NETGOLF verranno salvati nel tuo storico e useremo lo score per aggiornare l'HCP automaticamente.") }}
+    </div>
+
+    <div class="actions">
+      <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary">
+        {{ _("Dashboard") }}
+      </a>
+      <a href="{{ url_for('scorecard.upload_form') }}" class="btn btn-primary">
+        {{ _("Carica un'altra scorecard") }}
+      </a>
+    </div>
+  </div>
+
+</body>
+</html>
