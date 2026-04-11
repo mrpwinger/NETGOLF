@@ -1,0 +1,455 @@
+{# ──────────────────────────────────────────────────────────────────────────
+   netgolf/templates/scorecard/review.html
+
+   Form di review dei dati estratti dall'OCR. Mostra tutto, è tutto modificabile,
+   evidenzia in giallo i campi a bassa confidenza, mostra i warning in cima.
+   Click "Conferma" → POST a /scorecard/confirm.
+   ──────────────────────────────────────────────────────────────────────── #}
+<!DOCTYPE html>
+<html lang="{{ get_locale() if get_locale else 'it' }}">
+<head>
+  <meta charset="UTF-8">
+  <title>{{ _("Verifica scorecard") }} — NETGOLF</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --green-deep:   #071a10;
+      --green-mid:    #0A5C36;
+      --green-bright: #0d7a46;
+      --green-accent: #00FF66;
+      --green-light:  #00cc52;
+      --navy:         #112240;
+      --cream:        #f0faf5;
+      --white:        #ffffff;
+      --gray-soft:    #6b8c7a;
+      --red-score:    #ff4060;
+      --warn-yellow:  #ffd23f;
+      --info-blue:    #4d9fff;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: linear-gradient(150deg, #071a10 0%, #0a2a1a 40%, #112240 100%);
+      color: var(--cream);
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+    body {
+      padding: 32px 16px;
+    }
+    .container {
+      max-width: 720px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      font-size: 24px;
+      font-weight: 800;
+      color: var(--white);
+      margin-bottom: 6px;
+    }
+    .subtitle {
+      font-size: 13px;
+      color: var(--gray-soft);
+      margin-bottom: 24px;
+      line-height: 1.6;
+    }
+
+    .back-link {
+      color: var(--gray-soft);
+      text-decoration: none;
+      font-size: 13px;
+      display: inline-block;
+      margin-bottom: 18px;
+    }
+    .back-link:hover { color: var(--green-accent); }
+
+    .warnings {
+      background: rgba(255, 210, 63, 0.1);
+      border: 1px solid rgba(255, 210, 63, 0.35);
+      border-radius: 12px;
+      padding: 16px 18px;
+      margin-bottom: 22px;
+    }
+    .warnings .title {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--warn-yellow);
+      margin-bottom: 10px;
+    }
+    .warnings ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .warnings li {
+      font-size: 13px;
+      line-height: 1.6;
+      color: var(--cream);
+      padding: 4px 0 4px 18px;
+      position: relative;
+    }
+    .warnings li::before {
+      content: '⚠';
+      position: absolute;
+      left: 0;
+      color: var(--warn-yellow);
+    }
+
+    .name-mismatch {
+      background: rgba(255, 64, 96, 0.12);
+      border: 1px solid rgba(255, 64, 96, 0.35);
+      border-radius: 12px;
+      padding: 16px 18px;
+      margin-bottom: 22px;
+      font-size: 13px;
+      line-height: 1.6;
+      color: #ff8a9e;
+    }
+
+    .section {
+      background: rgba(10, 92, 54, 0.08);
+      border: 1px solid rgba(0, 255, 102, 0.12);
+      border-radius: 14px;
+      padding: 20px 22px;
+      margin-bottom: 18px;
+    }
+    .section-title {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      color: var(--green-light);
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 14px 16px;
+    }
+    @media (max-width: 480px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    .field.full { grid-column: 1 / -1; }
+    .field label {
+      font-size: 11px;
+      color: var(--gray-soft);
+      font-weight: 500;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+    .field input {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      padding: 11px 13px;
+      font-family: inherit;
+      font-size: 14px;
+      color: var(--white);
+      outline: none;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .field input:focus {
+      border-color: var(--green-accent);
+      background: rgba(0, 255, 102, 0.05);
+    }
+    .field input.empty {
+      color: rgba(255, 255, 255, 0.4);
+      font-style: italic;
+    }
+
+    /* ── Tabella buche ────────────────────────────────────────────── */
+    .buche-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0 4px;
+      font-size: 13px;
+    }
+    .buche-table th {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--gray-soft);
+      text-align: center;
+      padding: 6px 4px;
+    }
+    .buche-table td {
+      padding: 8px 4px;
+      text-align: center;
+      background: rgba(255, 255, 255, 0.04);
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .buche-table tr td:first-child {
+      border-left: 1px solid rgba(255, 255, 255, 0.05);
+      border-top-left-radius: 6px;
+      border-bottom-left-radius: 6px;
+    }
+    .buche-table tr td:last-child {
+      border-right: 1px solid rgba(255, 255, 255, 0.05);
+      border-top-right-radius: 6px;
+      border-bottom-right-radius: 6px;
+    }
+    .buche-table .col-buca   { font-weight: 700; color: var(--cream); }
+    .buche-table .col-par    { color: var(--gray-soft); }
+    .buche-table .col-colpi  { color: var(--gray-soft); font-size: 11px; }
+    .buche-table input.score-input {
+      width: 56px;
+      background: rgba(0, 0, 0, 0.25);
+      border: 1px solid rgba(0, 255, 102, 0.2);
+      border-radius: 6px;
+      padding: 6px 8px;
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--white);
+      text-align: center;
+      outline: none;
+    }
+    .buche-table input.score-input:focus {
+      border-color: var(--green-accent);
+      background: rgba(0, 255, 102, 0.08);
+    }
+    /* Righe con score a bassa confidenza: bordo sinistro giallo */
+    .buche-table tr.confidence-low td:first-child {
+      border-left: 3px solid var(--warn-yellow);
+    }
+    .buche-table tr.confidence-medium td:first-child {
+      border-left: 3px solid rgba(255, 210, 63, 0.4);
+    }
+    .buche-table tr.is-x td input.score-input {
+      color: var(--info-blue);
+      border-color: rgba(77, 159, 255, 0.4);
+    }
+
+    .actions {
+      display: flex;
+      gap: 12px;
+      margin-top: 26px;
+    }
+    .btn {
+      flex: 1;
+      padding: 14px 18px;
+      border-radius: 10px;
+      border: none;
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s;
+      text-decoration: none;
+      text-align: center;
+      display: inline-block;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--green-mid), var(--green-accent));
+      color: var(--white);
+    }
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: var(--cream);
+    }
+
+    .legend {
+      font-size: 11px;
+      color: var(--gray-soft);
+      margin-top: 10px;
+      text-align: center;
+    }
+    .legend .lg-item { display: inline-block; margin: 0 8px; }
+    .legend .lg-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 2px;
+      vertical-align: middle;
+      margin-right: 4px;
+    }
+    .legend .lg-yellow { background: var(--warn-yellow); }
+    .legend .lg-blue   { background: var(--info-blue); }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <a href="{{ url_for('scorecard.upload_form') }}" class="back-link">← {{ _("Carica un'altra foto") }}</a>
+
+    <h1>{{ _("Verifica i dati estratti") }}</h1>
+    <p class="subtitle">
+      {{ _("NETGOLF ha letto la tua scorecard. Controlla che tutto sia corretto e correggi eventuali errori prima di confermare.") }}
+    </p>
+
+    {# Warning del nome non corrispondente #}
+    {% set meta = data.get('_meta') or {} %}
+    {% if meta.get('name_match') is sameas false %}
+      <div class="name-mismatch">
+        ⚠ {{ _("La scorecard è intestata a") }}
+        <strong>{{ data.giocatore.nome_completo or '?' }}</strong>,
+        {{ _("ma tu sei loggato come") }}
+        <strong>{{ meta.user_full_name or meta.user_email }}</strong>.
+        {{ _("Procedi solo se sei tu (es. se la scorecard è di un altro giocatore di cui sei stato marker, salvala con cautela).") }}
+      </div>
+    {% endif %}
+
+    {# Warning OCR + dominio #}
+    {% if data.warnings %}
+      <div class="warnings">
+        <div class="title">{{ _("Da verificare") }}</div>
+        <ul>
+          {% for w in data.warnings %}
+            <li>{{ w }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+    {% endif %}
+
+    <form method="POST" action="{{ url_for('scorecard.confirm') }}" id="review-form">
+
+      {# ── Torneo ─────────────────────────────────────────────── #}
+      <div class="section">
+        <div class="section-title">{{ _("Torneo") }}</div>
+        <div class="grid">
+          <div class="field full">
+            <label>{{ _("Nome torneo") }}</label>
+            <input type="text" name="torneo_nome" value="{{ data.torneo.nome or '' }}">
+          </div>
+          <div class="field">
+            <label>{{ _("Data gara") }}</label>
+            <input type="date" name="torneo_data_gara" value="{{ data.torneo.data_gara or '' }}">
+          </div>
+          <div class="field">
+            <label>{{ _("Ora partenza") }}</label>
+            <input type="text" name="torneo_ora_partenza" value="{{ data.torneo.ora_partenza or '' }}" placeholder="HH:MM">
+          </div>
+        </div>
+      </div>
+
+      {# ── Giocatore ──────────────────────────────────────────── #}
+      <div class="section">
+        <div class="section-title">{{ _("Giocatore") }}</div>
+        <div class="grid">
+          <div class="field">
+            <label>{{ _("Tessera") }}</label>
+            <input type="text" name="giocatore_tessera" value="{{ data.giocatore.tessera or '' }}">
+          </div>
+          <div class="field">
+            <label>{{ _("Nome completo") }}</label>
+            <input type="text" name="giocatore_nome_completo" value="{{ data.giocatore.nome_completo or '' }}">
+          </div>
+        </div>
+      </div>
+
+      {# ── Campo ──────────────────────────────────────────────── #}
+      <div class="section">
+        <div class="section-title">{{ _("Campo e percorso") }}</div>
+        <div class="grid">
+          <div class="field">
+            <label>{{ _("Circolo") }}</label>
+            <input type="text" name="campo_circolo" value="{{ data.campo.circolo or '' }}">
+          </div>
+          <div class="field">
+            <label>{{ _("Percorso") }}</label>
+            <input type="text" name="campo_percorso" value="{{ data.campo.percorso or '' }}">
+          </div>
+          <div class="field">
+            <label>{{ _("Tee colore") }}</label>
+            <input type="text" name="campo_tee_colore" value="{{ data.campo.tee_colore or '' }}">
+          </div>
+          <div class="field">
+            <label>{{ _("Par totale") }}</label>
+            <input type="number" name="campo_par_totale" value="{{ data.campo.par_totale or '' }}">
+          </div>
+          <div class="field">
+            <label>CR</label>
+            <input type="text" name="campo_cr_uomini" value="{{ data.campo.cr_uomini or '' }}">
+          </div>
+          <div class="field">
+            <label>SR</label>
+            <input type="text" name="campo_sr_uomini" value="{{ data.campo.sr_uomini or '' }}">
+          </div>
+        </div>
+      </div>
+
+      {# ── Handicap ───────────────────────────────────────────── #}
+      <div class="section">
+        <div class="section-title">{{ _("Handicap") }}</div>
+        <div class="grid">
+          <div class="field">
+            <label>{{ _("HCP Index") }}</label>
+            <input type="text" name="handicap_hcp_index" value="{{ data.handicap.hcp_index or '' }}">
+          </div>
+          <div class="field">
+            <label>{{ _("HCP Gioco") }}</label>
+            <input type="text" name="handicap_hcp_gioco" value="{{ data.handicap.hcp_gioco or '' }}">
+          </div>
+        </div>
+      </div>
+
+      {# ── Buche ──────────────────────────────────────────────── #}
+      <div class="section">
+        <div class="section-title">{{ _("Score per buca") }}</div>
+        <table class="buche-table">
+          <thead>
+            <tr>
+              <th>{{ _("Buca") }}</th>
+              <th>{{ _("Par") }}</th>
+              <th>{{ _("Colpi") }}</th>
+              <th>{{ _("Score") }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for b in data.buche %}
+              {% set conf = b.score_confidence or 'high' %}
+              {% set is_x = (b.score == 'X') %}
+              <tr class="confidence-{{ conf }} {% if is_x %}is-x{% endif %}">
+                <td class="col-buca">{{ b.buca }}</td>
+                <td class="col-par">{{ b.par or '—' }}</td>
+                <td class="col-colpi">{{ b.ordine_colpi or '—' }}</td>
+                <td>
+                  <input type="text"
+                         name="buca_{{ b.buca }}_score"
+                         class="score-input"
+                         value="{{ b.score if b.score is not none else '' }}"
+                         maxlength="3"
+                         autocomplete="off"
+                         inputmode="numeric">
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        <div class="legend">
+          <span class="lg-item"><span class="lg-dot lg-yellow"></span>{{ _("score incerto") }}</span>
+          <span class="lg-item"><span class="lg-dot lg-blue"></span>{{ _("X = no return") }}</span>
+        </div>
+      </div>
+
+      <div class="actions">
+        <a href="{{ url_for('scorecard.upload_form') }}" class="btn btn-secondary">
+          {{ _("Annulla") }}
+        </a>
+        <button type="submit" class="btn btn-primary">
+          {{ _("Conferma") }}
+        </button>
+      </div>
+    </form>
+  </div>
+
+</body>
+</html>
