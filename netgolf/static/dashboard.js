@@ -47,6 +47,20 @@ function isValida(v, sd) {
   return true;
 }
 
+// Normalizza una data dal formato italiano "11/04/2026" al formato ISO
+// "2026-04-11" per il match col backend scorecard /lookup, che usa
+// sempre date in ISO come restituite da Claude vision.
+function _normDateForLookup(s) {
+  if (!s) return '';
+  s = String(s).trim();
+  // già in ISO?
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+  // formato italiano DD/MM/YYYY o DD-MM-YYYY?
+  const m = s.match(/^(\d{2})[\/\-](\d{2})[\/\-](\d{4})/);
+  if (m) return m[3] + '-' + m[2] + '-' + m[1];
+  return s;
+}
+
 // ═══════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════
@@ -918,7 +932,9 @@ function renderHcpCalc() {
     // Exceptional score badge rimosso (non mostrato all'utente)
     const exceptBadge = '';
 
-    return '<div class="' + rowClass + '" style="animation-delay:' + (i*20) + 'ms">' +
+    return '<div class="' + rowClass + '" style="animation-delay:' + (i*20) + 'ms"' +
+      ' data-date="' + _normDateForLookup(r.data) + '"' +
+      ' data-circolo="' + (r.esecutore || '').replace(/"/g,'&quot;') + '">' +
       '<div class="sd-rank' + (isTop ? ' highlight' : '') + '">' + (i+1) + '</div>' +
       '<div class="sd-info">' +
         '<div class="sd-gara">' + (r.gara || '—') + (isLast ? ' 🔴' : '') + '</div>' +
