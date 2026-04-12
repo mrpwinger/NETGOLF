@@ -37,6 +37,13 @@ from .ocr import (
 )
 from . import bp
 
+from .storage import (
+    save_scorecard,
+    list_scorecards_for_user,
+    get_scorecard,
+    find_scorecard_for_gara,
+)
+
 logger = logging.getLogger(__name__)
 
 
@@ -180,23 +187,30 @@ def review():
 def confirm():
     """
     L'utente ha rivisto/corretto i dati e clicca Conferma.
-    In Fase 1 mostriamo solo un riepilogo finale (nessuna persistenza).
-    Le correzioni manuali arrivano via form fields nel POST.
+    Fase 2: persistiamo nel DB con calcolo Stableford e match FK opzionale
+    alla gara dello storico FIG.
     """
     parsed = session.get("scorecard_ocr_result")
     if not parsed:
         flash("Sessione scaduta. Ricarica la foto.", "error")
         return redirect(url_for("scorecard.upload_form"))
-
-    # Applica le correzioni manuali dall'utente.
-    # Per ora cattura solo i campi principali: scope minimale per Fase 1.
+ 
+    # Applica le correzioni manuali dall'utente al dict parsed
     confirmed = _apply_user_corrections(parsed, request.form)
-
-    # Pulisci la sessione dell'OCR result (così se l'utente ricarica la pagina
-    # non rivede i vecchi dati)
+ 
+    # Persisti
+    try:
+        sc = save_scorecard(current_user, confirmed)
+    except Exception as e:
+        logger.exception("Errore salvataggio scorecard: %s", e)
+        flash(f"Errore durante il salvataggio: {e}", "error")
+        return redirect(url_for("scorecard.upload_form"))
+ 
+    # Pulisci la sessione OCR
     session.pop("scorecard_ocr_result", None)
-
-    return render_template("scorecard/done.html", data=confirmed)
+ 
+    # Vai al dettaglio della scorecard appena salvata
+    return redirect(url_for("scorecard.detail", scorecard_id=sc.id))
 
 
 # ─── Helper privati ───────────────────────────────────────────────────────
@@ -330,3 +344,44 @@ def _apply_user_corrections(parsed: dict, form) -> dict:
     out["buche"] = buche
 
     return out
+
+@bp.get("/list")
+@login_required
+def list_view():
+    """Lista delle scorecard caricate dall'utente, più recenti prima."""
+    cards = list_scorecards_for_user(current_user)
+    return render_template("scorecard/list.html", cards=cards)
+ 
+ 
+@bp.get("/<int:scorecard_id>")
+@login_required
+def detail(scorecard_id: int):
+    """Dettaglio di una scorecard salvata (read-only)."""
+    sc = get_scorecard(current_user, scorecard_id)
+    if not sc:
+        abort(404)
+    return render_template("scorecard/detail.html", sc=sc)
+ 
+ 
+@bp.get("/lookup")
+@login_required
+def lookup():
+    """
+    Endpoint JSON usato dal dashboard.js per sapere se per una certa
+    coppia (data, circolo) dello storico FIG esiste una scorecard caricata.
+ 
+    Query string:
+        ?data=YYYY-MM-DD&circolo=NOMECIRCOLO
+ 
+    Risposta:
+        { "exists": true,  "scorecard_id": 42 }
+        oppure
+        { "exists": false }
+    """
+    data_gara = (request.args.get("data") or "").strip()
+    circolo = (request.args.get("circolo") or "").strip()
+    sc = find_scorecard_for_gara(current_user, data_gara, circolo)
+    if sc:
+        return jsonify(exists=True, scorecard_id=sc.id, stbl_lordo=sc.stbl_lordo_totale,
+                       stbl_netto=sc.stbl_netto_totale, score_lordo=sc.score_lordo_totale)
+    return jsonify(exists=False)
