@@ -126,7 +126,7 @@ class FraseAssegnata(db.Model):
     __table_args__ = (
         db.UniqueConstraint("user_id", "anno", "mese", name="uq_frase_user_periodo"),
     )
-  class FigResult(db.Model):
+class FigResult(db.Model):
     """
     Cache locale di una gara dello storico FIG di un utente. Popolata
     on-demand quando l'utente carica una scorecard che fa match (data + circolo)
