@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="{{ get_locale() if get_locale else 'it' }}">
+<head>
+  <meta charset="UTF-8">
+  <title>{{ _("Scorecard") }} — {{ sc.torneo_nome or sc.circolo or '?' }}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --green-deep: #071a10; --green-mid: #0A5C36; --green-bright: #0d7a46;
+      --green-accent: #00FF66; --green-light: #00cc52; --navy: #112240;
+      --cream: #f0faf5; --white: #ffffff; --gray-soft: #6b8c7a;
+      --info-blue: #4d9fff; --warn-yellow: #ffd23f;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: linear-gradient(150deg, #071a10 0%, #0a2a1a 40%, #112240 100%);
+      color: var(--cream); min-height: 100vh; -webkit-font-smoothing: antialiased;
+    }
+    body { padding: 32px 16px; }
+    .container { max-width: 760px; margin: 0 auto; }
+    .back-link { color: var(--gray-soft); text-decoration: none; font-size: 13px; display: inline-block; margin-bottom: 18px; }
+    .back-link:hover { color: var(--green-accent); }
+    h1 { font-size: 24px; font-weight: 800; color: var(--white); margin-bottom: 4px; }
+    .subtitle { font-size: 13px; color: var(--gray-soft); margin-bottom: 24px; }
+
+    .totals {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+      margin-bottom: 22px;
+    }
+    .totals .tile {
+      background: rgba(10, 92, 54, 0.15);
+      border: 1px solid rgba(0, 255, 102, 0.25);
+      border-radius: 14px;
+      padding: 18px 16px;
+      text-align: center;
+    }
+    .totals .label {
+      font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase;
+      color: var(--green-light); margin-bottom: 6px;
+    }
+    .totals .value {
+      font-family: 'Inter', sans-serif; font-size: 28px; font-weight: 800;
+      color: var(--white); line-height: 1;
+    }
+    .totals .tile.accent .value { color: var(--green-accent); }
+
+    .section {
+      background: rgba(10, 92, 54, 0.08);
+      border: 1px solid rgba(0, 255, 102, 0.12);
+      border-radius: 14px;
+      padding: 18px 22px;
+      margin-bottom: 16px;
+    }
+    .section-title {
+      font-size: 11px; font-weight: 700; letter-spacing: 2px;
+      color: var(--green-light); text-transform: uppercase; margin-bottom: 14px;
+    }
+    .info-grid {
+      display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px 20px;
+      font-size: 13px;
+    }
+    @media (max-width: 480px) {
+      .info-grid { grid-template-columns: 1fr; }
+      .totals { grid-template-columns: 1fr; }
+    }
+    .info-grid .info-row { display: flex; justify-content: space-between; gap: 12px; }
+    .info-grid .label { color: var(--gray-soft); }
+    .info-grid .value { color: var(--white); font-weight: 500; text-align: right; }
+
+    /* Tabella buche */
+    table.holes {
+      width: 100%; border-collapse: separate; border-spacing: 0 4px;
+      font-size: 12px;
+    }
+    table.holes th {
+      font-size: 9px; text-transform: uppercase; letter-spacing: 0.8px;
+      color: var(--gray-soft); padding: 6px 4px; font-weight: 600;
+      text-align: center;
+    }
+    table.holes td {
+      padding: 9px 4px; text-align: center;
+      background: rgba(255, 255, 255, 0.04);
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    table.holes tr td:first-child {
+      border-left: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 6px 0 0 6px;
+      font-weight: 700; color: var(--cream);
+    }
+    table.holes tr td:last-child {
+      border-right: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 0 6px 6px 0;
+    }
+    table.holes td.par, table.holes td.ord { color: var(--gray-soft); }
+    table.holes td.score { font-weight: 700; color: var(--white); font-size: 13px; }
+    table.holes td.score.x { color: var(--info-blue); }
+    table.holes td.stbl-lordo { color: var(--cream); }
+    table.holes td.stbl-netto { color: var(--green-accent); font-weight: 700; }
+    table.holes tr.row-out td, table.holes tr.row-in td, table.holes tr.row-tot td {
+      background: rgba(0, 255, 102, 0.08);
+      font-weight: 700; color: var(--white);
+      font-size: 11px;
+    }
+    table.holes tr.row-tot td { background: rgba(0, 255, 102, 0.15); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <a href="{{ url_for('scorecard.list_view') }}" class="back-link">← {{ _("Tutte le scorecard") }}</a>
+    <h1>{{ sc.torneo_nome or _("Scorecard") }}</h1>
+    <p class="subtitle">
+      {{ sc.data_gara or '?' }} · {{ sc.circolo or '?' }} · {{ sc.percorso or '' }} · Tee {{ sc.tee_colore or '?' }}
+      {% if sc.fig_result_id %}<span style="color:var(--green-accent)"> · ✓ {{ _("collegata a gara FIG") }}</span>{% endif %}
+    </p>
+
+    <div class="totals">
+      <div class="tile">
+        <div class="label">{{ _("Score lordo") }}</div>
+        <div class="value">{{ sc.score_lordo_totale }}</div>
+      </div>
+      <div class="tile">
+        <div class="label">{{ _("Stbl Lordo") }}</div>
+        <div class="value">{{ sc.stbl_lordo_totale }}</div>
+      </div>
+      <div class="tile accent">
+        <div class="label">{{ _("Stbl Netto") }}</div>
+        <div class="value">{{ sc.stbl_netto_totale }}</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">{{ _("Dati gara") }}</div>
+      <div class="info-grid">
+        <div class="info-row"><span class="label">{{ _("Giocatore") }}</span><span class="value">{{ sc.giocatore_nome or '—' }}</span></div>
+        <div class="info-row"><span class="label">{{ _("Tessera") }}</span><span class="value">{{ sc.giocatore_tessera or '—' }}</span></div>
+        <div class="info-row"><span class="label">HCP Index</span><span class="value">{{ sc.hcp_index or '—' }}</span></div>
+        <div class="info-row"><span class="label">HCP Gioco</span><span class="value">{{ sc.hcp_gioco or '—' }}</span></div>
+        <div class="info-row"><span class="label">CR / SR</span><span class="value">{{ sc.cr or '?' }} / {{ sc.sr or '?' }}</span></div>
+        <div class="info-row"><span class="label">{{ _("Par totale") }}</span><span class="value">{{ sc.par_totale or '?' }}</span></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">{{ _("Buca per buca") }}</div>
+      <table class="holes">
+        <thead>
+          <tr>
+            <th>{{ _("Buca") }}</th>
+            <th>Par</th>
+            <th>{{ _("Hcp") }}</th>
+            <th>{{ _("Score") }}</th>
+            <th>Stbl L</th>
+            <th>Stbl N</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% set ns = namespace(out_l=0, out_n=0, out_s=0, in_l=0, in_n=0, in_s=0) %}
+          {% for h in sc.holes %}
+            {% set is_x = (h.score_raw == 'X') %}
+            <tr>
+              <td>{{ h.buca }}</td>
+              <td class="par">{{ h.par or '—' }}</td>
+              <td class="ord">{{ h.ordine_colpi or '—' }}</td>
+              <td class="score {% if is_x %}x{% endif %}">{{ h.score_raw or '—' }}</td>
+              <td class="stbl-lordo">{{ h.stbl_lordo }}</td>
+              <td class="stbl-netto">{{ h.stbl_netto }}</td>
+            </tr>
+            {% if h.buca <= 9 %}
+              {% set ns.out_l = ns.out_l + h.stbl_lordo %}
+              {% set ns.out_n = ns.out_n + h.stbl_netto %}
+              {% if h.score_raw and h.score_raw.isdigit() %}{% set ns.out_s = ns.out_s + h.score_raw|int %}{% endif %}
+            {% else %}
+              {% set ns.in_l = ns.in_l + h.stbl_lordo %}
+              {% set ns.in_n = ns.in_n + h.stbl_netto %}
+              {% if h.score_raw and h.score_raw.isdigit() %}{% set ns.in_s = ns.in_s + h.score_raw|int %}{% endif %}
+            {% endif %}
+            {% if h.buca == 9 %}
+              <tr class="row-out"><td>OUT</td><td>—</td><td>—</td><td>{{ ns.out_s }}</td><td>{{ ns.out_l }}</td><td>{{ ns.out_n }}</td></tr>
+            {% elif h.buca == 18 %}
+              <tr class="row-in"><td>IN</td><td>—</td><td>—</td><td>{{ ns.in_s }}</td><td>{{ ns.in_l }}</td><td>{{ ns.in_n }}</td></tr>
+              <tr class="row-tot"><td>TOT</td><td>—</td><td>—</td><td>{{ sc.score_lordo_totale }}</td><td>{{ sc.stbl_lordo_totale }}</td><td>{{ sc.stbl_netto_totale }}</td></tr>
+            {% endif %}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+</body>
+</html>
