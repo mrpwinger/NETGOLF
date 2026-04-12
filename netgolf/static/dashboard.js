@@ -1509,3 +1509,74 @@ function exportPDF() {
   </body></html>`);
   win.document.close();
 }
+
+// Decora le righe dello storico con un'icona "📷" per le gare che hanno
+// una scorecard caricata. Va chiamato dopo ogni render dello storico.
+async function decorateStoricoWithScorecards() {
+  // Cerchiamo nelle righe storico già renderizzate. La selezione esatta
+  // dipende da come è strutturato il rendering: se le righe hanno classe
+  // .sd-row (vedo nel CSS), prendiamo quelle. Se hanno data-date e
+  // data-circolo come attributi, perfetto. Altrimenti vanno aggiunti.
+  const rows = document.querySelectorAll('.sd-row[data-date][data-circolo]');
+  for (const row of rows) {
+    if (row.dataset.scorecardChecked === '1') continue;  // evita doppio fetch
+    row.dataset.scorecardChecked = '1';
+ 
+    const data = row.dataset.date;
+    const circolo = row.dataset.circolo;
+    if (!data || !circolo) continue;
+ 
+    try {
+      const url = '/scorecard/lookup?data=' + encodeURIComponent(data)
+                + '&circolo=' + encodeURIComponent(circolo);
+      const r = await fetch(url, { headers: { 'Accept': 'application/json' } });
+      if (!r.ok) continue;
+      const j = await r.json();
+      if (j.exists) {
+        // Aggiungi un badge cliccabile che linka al detail
+        const badge = document.createElement('a');
+        badge.href = '/scorecard/' + j.scorecard_id;
+        badge.className = 'sd-scorecard-badge';
+        badge.title = 'Scorecard caricata · Stbl Netto: ' + (j.stbl_netto || '?');
+        badge.textContent = '📷 ' + (j.stbl_netto || '');
+        badge.style.cssText = 'margin-left:8px;padding:2px 7px;border-radius:8px;'
+          + 'background:rgba(0,255,102,0.15);color:#00ff66;font-size:11px;'
+          + 'text-decoration:none;font-weight:600;';
+        row.appendChild(badge);
+      }
+    } catch (e) {
+      // Silenzioso: l'icona è solo decorativa
+      console.debug('[scorecard lookup]', e);
+    }
+  }
+}
+ 
+// Hook periodico: ogni 2 secondi controlla se ci sono nuove righe storico
+// da decorare. Più semplice e robusto che cercare di intercettare il
+// momento esatto del render (che dipende dall'ordine async di loadAllData).
+setInterval(decorateStoricoWithScorecards, 2000);
+ 
+// E un primo run subito dopo il DOMContentLoaded
+document.addEventListener('DOMContentLoaded', () => {
+  setTimeout(decorateStoricoWithScorecards, 1500);
+});
+ 
+/* ─────────────────────────────────────────────────────────────────────────
+ * IMPORTANTE — prerequisito DOM:
+ *
+ * Le righe .sd-row dello storico DEVONO avere gli attributi:
+ *     data-date="YYYY-MM-DD"
+ *     data-circolo="NOME CIRCOLO"
+ *
+ * Se nel rendering corrente NON sono presenti, devi aggiungerli nella
+ * funzione che genera l'HTML delle righe storico (cerca dove vengono
+ * creati gli .sd-row, intorno alla riga 800-900 di dashboard.js).
+ *
+ * Esempio: se oggi hai
+ *     '<div class="sd-row">...'
+ * cambialo in
+ *     '<div class="sd-row" data-date="' + r.data + '" data-circolo="' + (r.circolo || '') + '">...'
+ *
+ * (sostituendo r.data e r.circolo con i nomi dei campi reali del tuo
+ * oggetto risultato).
+ * ───────────────────────────────────────────────────────────────────────── */
