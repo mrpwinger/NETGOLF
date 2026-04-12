@@ -47,6 +47,17 @@ def colpi_ricevuti(hcp_gioco: int | None, ordine_colpi: int | None) -> int:
         threshold += 18
     return n
 
+def net_double_bogey(par, colpi_ricevuti) -> int:
+    """Score massimo accettabile per la buca: par + 2 + colpi_ricevuti."""
+
+def adjusted_gross_score(par, score_raw, colpi_ricevuti) -> int:
+    """
+    AGS hole-by-hole secondo WHS:
+    - Se score è X/None → ritorna net_double_bogey
+    - Se score > net_double_bogey → ritorna net_double_bogey
+    - Altrimenti → ritorna score
+    """
+
 
 def stableford_lordo(par: int | None, score) -> int:
     """
