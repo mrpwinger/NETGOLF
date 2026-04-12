@@ -66,14 +66,17 @@ def upload_submit():
     """Riceve la foto, la passa a OCR, salva il risultato in sessione,
     redirect alla pagina di review."""
 
-    # 1) Validazione presenza file
-    if "scorecard_image" not in request.files:
-        flash("Nessun file ricevuto. Seleziona una foto e riprova.", "error")
-        return redirect(url_for("scorecard.upload_form"))
-
-    f = request.files["scorecard_image"]
-    if not f or not f.filename:
-        flash("Nessun file selezionato.", "error")
+    # 1) Validazione presenza file.
+    # Il form ha due <input name="scorecard_image"> (camera + galleria). Il JS
+    # svuota quello non usato, ma Werkzeug può comunque vedere entrambi i campi:
+    # prendiamo il primo FileStorage con un filename valido, ignorando i vuoti.
+    files_list = request.files.getlist("scorecard_image")
+    f = next(
+        (x for x in files_list if x and x.filename and x.filename.strip()),
+        None,
+    )
+    if f is None:
+        flash("Nessun file selezionato. Scatta una foto o scegline una dalla galleria.", "error")
         return redirect(url_for("scorecard.upload_form"))
 
     # 2) Validazione tipo
