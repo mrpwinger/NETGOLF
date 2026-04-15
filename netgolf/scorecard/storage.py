@@ -118,3 +118,84 @@ def stableford_netto(par: int | None, score, colpi_ricevuti_buca: int) -> int:
             return 0
     score_netto = score_int - (colpi_ricevuti_buca or 0)
     return max(0, 2 + (par - score_netto))
+
+# ─── Persistenza DB ───────────────────────────────────────────────────────────
+from __future__ import annotations
+from typing import Optional
+from netgolf.extensions import db
+from netgolf.models import Scorecard, ScorecardHole
+
+
+def save_scorecard(user_id: int, header: dict, holes: list[dict]) -> Scorecard:
+    """
+    Crea (o aggiorna) una Scorecard con le relative ScorecardHole.
+    - header: dizionario con i campi della Scorecard (senza id, user_id, holes)
+    - holes: lista di dict con i campi di ScorecardHole (senza scorecard_id)
+    Ritorna l'oggetto Scorecard salvato (con id popolato).
+    """
+    sc = Scorecard(user_id=user_id, **{
+        k: header.get(k) for k in (
+            "torneo_nome", "data_gara", "circolo", "percorso", "tee_colore",
+            "par_totale", "cr", "sr",
+            "giocatore_nome", "giocatore_tessera", "hcp_index", "hcp_gioco",
+            "stbl_lordo_totale", "stbl_netto_totale",
+            "score_lordo_totale", "ags_totale",
+            "fig_result_id",
+        ) if k in header
+    })
+    db.session.add(sc)
+    db.session.flush()  # popola sc.id prima di creare i figli
+
+    for h in holes:
+        hole = ScorecardHole(scorecard_id=sc.id, **{
+            k: h.get(k) for k in (
+                "buca", "par", "metri_uomini", "ordine_colpi",
+                "score_raw", "score_ags",
+                "colpi_ricevuti", "stbl_lordo", "stbl_netto",
+            ) if k in h
+        })
+        db.session.add(hole)
+
+    db.session.commit()
+    return sc
+
+
+def list_scorecards_for_user(user_id: int) -> list[Scorecard]:
+    """
+    Ritorna tutte le scorecard dell'utente, ordinate per data decrescente.
+    """
+    return (
+        db.session.execute(
+            db.select(Scorecard)
+            .where(Scorecard.user_id == user_id)
+            .order_by(Scorecard.data_gara.desc(), Scorecard.created_at.desc())
+        )
+        .scalars()
+        .all()
+    )
+
+
+def get_scorecard(scorecard_id: int, user_id: int) -> Optional[Scorecard]:
+    """
+    Ritorna la scorecard con quell'id, solo se appartiene a user_id.
+    Ritorna None se non esiste o se appartiene a un altro utente.
+    """
+    return db.session.execute(
+        db.select(Scorecard).where(
+            Scorecard.id == user_id,
+            Scorecard.user_id == user_id,
+        )
+    ).scalar_one_or_none()
+
+
+def find_scorecard_for_gara(user_id: int, fig_result_id: int) -> Optional[Scorecard]:
+    """
+    Cerca una scorecard già caricata per questa gara FIG.
+    Utile per evitare duplicati o per linkare OCR → gara storico.
+    """
+    return db.session.execute(
+        db.select(Scorecard).where(
+            Scorecard.user_id == user_id,
+            Scorecard.fig_result_id == fig_result_id,
+        )
+    ).scalar_one_or_none()
