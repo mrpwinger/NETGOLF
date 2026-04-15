@@ -204,6 +204,7 @@ class Scorecard(db.Model):
     stbl_lordo_totale: Mapped[int] = mapped_column(db.Integer, default=0, nullable=False)
     stbl_netto_totale: Mapped[int] = mapped_column(db.Integer, default=0, nullable=False)
     score_lordo_totale: Mapped[int] = mapped_column(db.Integer, default=0, nullable=False)
+    ags_totale: Mapped[int] = mapped_column(db.Integer, default=0, nullable=False)
  
     created_at: Mapped[datetime] = mapped_column(db.DateTime, default=datetime.utcnow, nullable=False)
  
@@ -238,6 +239,7 @@ class ScorecardHole(db.Model):
     # Score: int normale (1..20) oppure stringa "X" per no-return.
     # Lo memorizziamo come stringa per gestire entrambi i casi.
     score_raw: Mapped[str | None] = mapped_column(db.String(4))
+    score_ags: Mapped[int | None] = mapped_column(db.Integer)
  
     # Calcolati al momento del salvataggio (vedi netgolf/scorecard/stableford.py)
     colpi_ricevuti: Mapped[int] = mapped_column(db.Integer, default=0, nullable=False)
