@@ -19,6 +19,9 @@ Regola WHS chiave:
 
 from __future__ import annotations
 
+from typing import Optional
+from netgolf.extensions import db
+from netgolf.models import Scorecard, ScorecardHole     
 
 def colpi_ricevuti(hcp_gioco: int | None, ordine_colpi: int | None) -> int:
     """Quanti colpi tecnici riceve il giocatore su una buca, per WHS."""
@@ -118,13 +121,6 @@ def stableford_netto(par: int | None, score, colpi_ricevuti_buca: int) -> int:
             return 0
     score_netto = score_int - (colpi_ricevuti_buca or 0)
     return max(0, 2 + (par - score_netto))
-
-# ─── Persistenza DB ───────────────────────────────────────────────────────────
-from __future__ import annotations
-from typing import Optional
-from netgolf.extensions import db
-from netgolf.models import Scorecard, ScorecardHole
-
 
 def save_scorecard(user_id: int, header: dict, holes: list[dict]) -> Scorecard:
     """
