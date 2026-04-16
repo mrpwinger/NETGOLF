@@ -195,3 +195,82 @@ def find_scorecard_for_gara(user_id: int, fig_result_id: int) -> Optional[Scorec
             Scorecard.fig_result_id == fig_result_id,
         )
     ).scalar_one_or_none()
+
+def find_matching_fig_result(user_id: int, data_gara: str, circolo: str):
+    """
+    Cerca una FigResult che corrisponde a data_gara e circolo (match fuzzy
+    sul circolo: contiene o è contenuto, case-insensitive).
+    Ritorna la prima trovata o None.
+    """
+    from netgolf.db import db
+    from netgolf.models import FigResult
+
+    candidates = db.session.execute(
+        db.select(FigResult).where(
+            FigResult.user_id == user_id,
+            FigResult.data_gara == data_gara,
+        )
+    ).scalars().all()
+
+    if not candidates:
+        return None
+
+    circolo_norm = (circolo or "").strip().upper()
+    for fig in candidates:
+        fig_norm = (fig.circolo or "").strip().upper()
+        if circolo_norm in fig_norm or fig_norm in circolo_norm:
+            return fig
+
+    return None
+
+
+def link_scorecard_to_fig(scorecard_id: int, user_id: int, fig_result_id: int) -> bool:
+    """
+    Collega una scorecard a una FigResult. Ritorna True se ok.
+    """
+    from netgolf.db import db
+    from netgolf.models import Scorecard, FigResult
+
+    sc = db.session.execute(
+        db.select(Scorecard).where(
+            Scorecard.id == scorecard_id,
+            Scorecard.user_id == user_id,
+        )
+    ).scalar_one_or_none()
+
+    fig = db.session.execute(
+        db.select(FigResult).where(
+            FigResult.id == fig_result_id,
+            FigResult.user_id == user_id,
+        )
+    ).scalar_one_or_none()
+
+    if not sc or not fig:
+        return False
+
+    sc.fig_result_id = fig_result_id
+    db.session.commit()
+    return True
+
+
+def unlink_scorecard_from_fig(scorecard_id: int, user_id: int) -> bool:
+    """
+    Scollega una scorecard dalla FigResult. La scorecard resta intatta.
+    Ritorna True se ok.
+    """
+    from netgolf.db import db
+    from netgolf.models import Scorecard
+
+    sc = db.session.execute(
+        db.select(Scorecard).where(
+            Scorecard.id == scorecard_id,
+            Scorecard.user_id == user_id,
+        )
+    ).scalar_one_or_none()
+
+    if not sc:
+        return False
+
+    sc.fig_result_id = None
+    db.session.commit()
+    return True
