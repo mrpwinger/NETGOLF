@@ -499,6 +499,7 @@ def lookup():
 @bp.post("/<int:scorecard_id>/link")
 @login_required
 def link_fig(scorecard_id: int):
+    from flask_babel import gettext as _
     key = request.form.get("fig_result_key", "").strip()
     if not key or key.count("|") < 2:
         flash(_("Seleziona una gara FIG."), "error")
