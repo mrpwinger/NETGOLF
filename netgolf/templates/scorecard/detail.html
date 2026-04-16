@@ -140,14 +140,13 @@
         {% if fig_results_candidati %}
           <form method="post" action="{{ url_for('scorecard.link_fig', scorecard_id=sc.id) }}"
                 style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-            <select name="fig_result_id" style="
-              background:rgba(10,92,54,0.3);border:1px solid rgba(0,255,102,0.3);
-              color:var(--cream);border-radius:8px;padding:8px 12px;font-size:13px;
-              font-family:inherit;flex:1;min-width:200px">
-              {% for fig in fig_results_candidati %}
-                <option value="{{ fig.id }}">{{ fig.data_gara }} — {{ fig.circolo }}{% if fig.nome_torneo %} ({{ fig.nome_torneo }}){% endif %}</option>
-              {% endfor %}
-            </select>
+<select name="fig_result_key" style="...">
+  {% for fig in fig_results_candidati %}
+    <option value="{{ fig._key }}">
+      {{ fig.data_gara }} — {{ fig.circolo }}{% if fig.nome_torneo %} ({{ fig.nome_torneo }}){% endif %}
+    </option>
+  {% endfor %}
+</select>
             <button type="submit" style="
               background:rgba(0,255,102,0.15);border:1px solid rgba(0,255,102,0.4);
               color:var(--green-accent);border-radius:8px;padding:8px 16px;font-size:12px;
