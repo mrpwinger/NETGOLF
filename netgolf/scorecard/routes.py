@@ -499,17 +499,31 @@ def lookup():
 @bp.post("/<int:scorecard_id>/link")
 @login_required
 def link_fig(scorecard_id: int):
-    """Collega manualmente la scorecard a una gara FIG."""
-    fig_result_id = request.form.get("fig_result_id", type=int)
-    if not fig_result_id:
+    key = request.form.get("fig_result_key", "").strip()
+    if not key or key.count("|") < 2:
         flash(_("Seleziona una gara FIG."), "error")
         return redirect(url_for("scorecard.detail", scorecard_id=scorecard_id))
 
-    ok = link_scorecard_to_fig(scorecard_id, current_user.id, fig_result_id)
-    if ok:
-        flash(_("Scorecard collegata alla gara FIG."), "success")
-    else:
-        flash(_("Collegamento non riuscito."), "error")
+    parts = key.split("|", 2)
+    data_iso, circolo, nome_torneo = parts[0], parts[1], parts[2]
+
+    from .storage import find_or_create_fig_result
+    fig = find_or_create_fig_result(
+        user_id=current_user.id,
+        data_gara_iso=data_iso,
+        circolo=circolo,
+        nome_torneo=nome_torneo or None,
+    )
+
+    sc = get_scorecard(scorecard_id, current_user.id)
+    if not sc:
+        abort(404)
+
+    sc.fig_result_id = fig.id
+    from netgolf.db import db
+    db.session.commit()
+
+    flash(_("Scorecard collegata alla gara FIG."), "success")
     return redirect(url_for("scorecard.detail", scorecard_id=scorecard_id))
 
 
