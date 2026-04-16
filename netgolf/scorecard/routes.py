@@ -285,11 +285,6 @@ sc = save_scorecard(current_user.id, header, holes)
                 flash(_("Scorecard collegata automaticamente alla gara FIG del %(data)s.", data=sc.data_gara), "info")
         except Exception as e:
             logger.warning("Auto-match FIG fallito (non bloccante): %s", e)
-
-    except Exception as e:
-        logger.exception("Errore salvataggio scorecard: %s", e)
-        flash(f"Errore durante il salvataggio: {e}", "error")
-        return redirect(url_for("scorecard.upload_form"))
  
     # Pulisci la sessione OCR
     session.pop("scorecard_ocr_result", None)
