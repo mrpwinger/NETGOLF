@@ -197,7 +197,7 @@ def confirm():
     # Applica le correzioni manuali dall'utente al dict parsed
     confirmed = _apply_user_corrections(parsed, request.form)
  
-    # Persisti
+# Persisti
     try:
         from .storage import (
             colpi_ricevuti as calc_colpi,
@@ -212,7 +212,6 @@ def confirm():
         giocatore = confirmed.get("giocatore") or {}
         handicap = confirmed.get("handicap") or {}
 
-        # Costruisci header
         header = {
             "torneo_nome":        torneo.get("nome"),
             "data_gara":          torneo.get("data_gara"),
@@ -231,16 +230,15 @@ def confirm():
             "ags_totale":         0,
         }
 
-        # Costruisci holes con calcoli WHS
         holes = []
         for b in (confirmed.get("buche") or []):
-            par          = b.get("par")
-            ordine       = b.get("ordine_colpi")
-            score_raw    = b.get("score")
-            colpi        = calc_colpi(hcp_gioco, ordine)
-            ags          = adjusted_gross_score(par, score_raw, colpi)
-            stbl_l       = stableford_lordo(par, ags)
-            stbl_n       = stableford_netto(par, ags, colpi)
+            par       = b.get("par")
+            ordine    = b.get("ordine_colpi")
+            score_raw = b.get("score")
+            colpi     = calc_colpi(hcp_gioco, ordine)
+            ags       = adjusted_gross_score(par, score_raw, colpi)
+            stbl_l    = stableford_lordo(par, ags)
+            stbl_n    = stableford_netto(par, ags, colpi)
 
             holes.append({
                 "buca":           b.get("buca"),
@@ -254,7 +252,6 @@ def confirm():
                 "stbl_netto":     stbl_n,
             })
 
-            # Accumula totali
             if isinstance(score_raw, int):
                 header["score_lordo_totale"] += score_raw
             if ags is not None:
@@ -264,10 +261,10 @@ def confirm():
 
         sc = save_scorecard(current_user.id, header, holes)
 
-        # Auto-match con storico FIG live
+        # Auto-match con storico FIG live (non bloccante)
         try:
             from .storage import match_scorecard_to_storico
-            from netgolf.fig.service import FigService, FigCredentialsMissing
+            from netgolf.fig.service import FigService
             from netgolf.fig.client import FigError
 
             service = FigService.from_app()
@@ -285,11 +282,15 @@ def confirm():
                 flash(_("Scorecard collegata automaticamente alla gara FIG del %(data)s.", data=sc.data_gara), "info")
         except Exception as e:
             logger.warning("Auto-match FIG fallito (non bloccante): %s", e)
- 
+
+    except Exception as e:
+        logger.exception("Errore salvataggio scorecard: %s", e)
+        flash(f"Errore durante il salvataggio: {e}", "error")
+        return redirect(url_for("scorecard.upload_form"))
+
     # Pulisci la sessione OCR
     session.pop("scorecard_ocr_result", None)
- 
-    # Vai al dettaglio della scorecard appena salvata
+
     return redirect(url_for("scorecard.detail", scorecard_id=sc.id))
 
 
