@@ -538,3 +538,21 @@ def unlink_fig(scorecard_id: int):
     else:
         flash(_("Scorecard non trovata."), "error")
     return redirect(url_for("scorecard.detail", scorecard_id=scorecard_id))
+
+@bp.get("/api/scorecards-index")
+@login_required
+def scorecards_index():
+    """
+    Ritorna un indice leggero delle scorecard dell'utente:
+    lista di {data_gara, circolo} per il match lato JS con le gare FIG.
+    """
+    cards = list_scorecards_for_user(current_user.id)
+    return jsonify(scorecards=[
+        {
+            "id": sc.id,
+            "data_gara": sc.data_gara,
+            "circolo": (sc.circolo or "").strip().upper(),
+            "torneo_nome": sc.torneo_nome,
+        }
+        for sc in cards
+    ])
