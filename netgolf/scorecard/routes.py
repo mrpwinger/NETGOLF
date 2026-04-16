@@ -421,7 +421,7 @@ def list_view():
 @login_required
 def detail(scorecard_id: int):
     """Dettaglio di una scorecard salvata (read-only)."""
-    sc = get_scorecard(current_user, scorecard_id)
+    sc = get_scorecard(scorecard_id, current_user.id)
     if not sc:
         abort(404)
     return render_template("scorecard/detail.html", sc=sc)
