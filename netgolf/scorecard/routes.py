@@ -436,23 +436,35 @@ def list_view():
 @bp.get("/<int:scorecard_id>")
 @login_required
 def detail(scorecard_id: int):
-    from netgolf.models import FigResult
-    from netgolf.db import db
-
     sc = get_scorecard(scorecard_id, current_user.id)
     if not sc:
         abort(404)
 
-    # Candidati per il collegamento manuale: tutte le FigResult dell'utente
-    # ordinate per data, per mostrare nel select solo se la scorecard non è
-    # già collegata
     fig_results_candidati = []
     if not sc.fig_result_id:
-        fig_results_candidati = db.session.execute(
-            db.select(FigResult)
-            .where(FigResult.user_id == current_user.id)
-            .order_by(FigResult.data_gara.desc())
-        ).scalars().all()
+        try:
+            from netgolf.fig.service import FigService
+            service = FigService.from_app()
+            storico_data = service.fetch_storico(current_user)
+            from .storage import _date_fig_to_iso
+            raw_results = storico_data.get("results", [])
+            # Costruisci lista di dict semplici per il template
+            seen = set()
+            for r in raw_results:
+                data_iso = _date_fig_to_iso(r.get("data", ""))
+                circolo = r.get("esecutore", "") or r.get("gara", "")
+                key = (data_iso, circolo)
+                if data_iso and circolo and key not in seen:
+                    seen.add(key)
+                    fig_results_candidati.append({
+                        "data_gara": data_iso,
+                        "circolo": circolo,
+                        "nome_torneo": r.get("gara"),
+                        # encode come stringa per passarlo al form
+                        "_key": f"{data_iso}|{circolo}|{r.get('gara', '')}",
+                    })
+        except Exception as e:
+            logger.warning("Fetch storico FIG per candidati fallito: %s", e)
 
     return render_template(
         "scorecard/detail.html",
