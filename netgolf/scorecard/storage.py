@@ -178,7 +178,7 @@ def get_scorecard(scorecard_id: int, user_id: int) -> Optional[Scorecard]:
     """
     return db.session.execute(
         db.select(Scorecard).where(
-            Scorecard.id == Scorecard_id,
+            Scorecard.id == scorecard_id,
             Scorecard.user_id == user_id,
         )
     ).scalar_one_or_none()
