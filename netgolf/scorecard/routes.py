@@ -349,7 +349,7 @@ def _apply_user_corrections(parsed: dict, form) -> dict:
 @login_required
 def list_view():
     """Lista delle scorecard caricate dall'utente, più recenti prima."""
-    cards = list_scorecards_for_user(current_user)
+    cards = list_scorecards_for_user(current_user.id)
     return render_template("scorecard/list.html", cards=cards)
  
  
