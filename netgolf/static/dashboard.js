@@ -210,7 +210,7 @@ async function loadAllData() {
   const btn = document.getElementById('btn-login');
   try {
     // Carica profilo e storico in parallelo
-    const [profiloRes, storicoRes] = await Promise.all([
+    const [profiloRes, storicoRes, scorecardsRes] = await Promise.all([
       fetch(PROXY_URL + '/api/fig/profilo', { headers: apiHeaders() }),
       fetch(PROXY_URL + '/api/fig/storico', { headers: apiHeaders() }),
       fetch('/scorecard/api/scorecards-index', { headers: apiHeaders() })
