@@ -437,11 +437,29 @@ def list_view():
 @bp.get("/<int:scorecard_id>")
 @login_required
 def detail(scorecard_id: int):
-    """Dettaglio di una scorecard salvata (read-only)."""
+    from netgolf.models import FigResult
+    from netgolf.db import db
+
     sc = get_scorecard(scorecard_id, current_user.id)
     if not sc:
         abort(404)
-    return render_template("scorecard/detail.html", sc=sc)
+
+    # Candidati per il collegamento manuale: tutte le FigResult dell'utente
+    # ordinate per data, per mostrare nel select solo se la scorecard non è
+    # già collegata
+    fig_results_candidati = []
+    if not sc.fig_result_id:
+        fig_results_candidati = db.session.execute(
+            db.select(FigResult)
+            .where(FigResult.user_id == current_user.id)
+            .order_by(FigResult.data_gara.desc())
+        ).scalars().all()
+
+    return render_template(
+        "scorecard/detail.html",
+        sc=sc,
+        fig_results_candidati=fig_results_candidati,
+    )
  
  
 @bp.get("/lookup")
