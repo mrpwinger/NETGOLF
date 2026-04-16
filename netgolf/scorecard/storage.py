@@ -20,8 +20,8 @@ Regola WHS chiave:
 from __future__ import annotations
 
 from typing import Optional
-from netgolf.extensions import db
-from netgolf.models import Scorecard, ScorecardHole     
+from netgolf.db import db
+from netgolf.models import Scorecard, ScorecardHole    
 
 def colpi_ricevuti(hcp_gioco: int | None, ordine_colpi: int | None) -> int:
     """Quanti colpi tecnici riceve il giocatore su una buca, per WHS."""
