@@ -200,7 +200,71 @@ def confirm():
  
     # Persisti
     try:
-        sc = save_scorecard(current_user, confirmed)
+        from .storage import (
+            colpi_ricevuti as calc_colpi,
+            adjusted_gross_score,
+            stableford_lordo,
+            stableford_netto,
+        )
+
+        hcp_gioco = (confirmed.get("handicap") or {}).get("hcp_gioco")
+        campo = confirmed.get("campo") or {}
+        torneo = confirmed.get("torneo") or {}
+        giocatore = confirmed.get("giocatore") or {}
+        handicap = confirmed.get("handicap") or {}
+
+        # Costruisci header
+        header = {
+            "torneo_nome":        torneo.get("nome"),
+            "data_gara":          torneo.get("data_gara"),
+            "circolo":            campo.get("circolo"),
+            "percorso":           campo.get("percorso"),
+            "tee_colore":         campo.get("tee_colore"),
+            "cr":                 campo.get("cr_uomini"),
+            "sr":                 campo.get("sr_uomini"),
+            "giocatore_nome":     giocatore.get("nome_completo"),
+            "giocatore_tessera":  giocatore.get("tessera"),
+            "hcp_index":          handicap.get("hcp_index"),
+            "hcp_gioco":          handicap.get("hcp_gioco"),
+            "stbl_lordo_totale":  0,
+            "stbl_netto_totale":  0,
+            "score_lordo_totale": 0,
+            "ags_totale":         0,
+        }
+
+        # Costruisci holes con calcoli WHS
+        holes = []
+        for b in (confirmed.get("buche") or []):
+            par          = b.get("par")
+            ordine       = b.get("ordine_colpi")
+            score_raw    = b.get("score")
+            colpi        = calc_colpi(hcp_gioco, ordine)
+            ags          = adjusted_gross_score(par, score_raw, colpi)
+            stbl_l       = stableford_lordo(par, ags)
+            stbl_n       = stableford_netto(par, ags, colpi)
+
+            holes.append({
+                "buca":           b.get("buca"),
+                "par":            par,
+                "metri_uomini":   b.get("metri_uomini"),
+                "ordine_colpi":   ordine,
+                "score_raw":      str(score_raw) if score_raw is not None else None,
+                "score_ags":      ags,
+                "colpi_ricevuti": colpi,
+                "stbl_lordo":     stbl_l,
+                "stbl_netto":     stbl_n,
+            })
+
+            # Accumula totali
+            if isinstance(score_raw, int):
+                header["score_lordo_totale"] += score_raw
+            if ags is not None:
+                header["ags_totale"] += ags
+            header["stbl_lordo_totale"] += stbl_l
+            header["stbl_netto_totale"] += stbl_n
+
+        sc = save_scorecard(current_user.id, header, holes)
+
     except Exception as e:
         logger.exception("Errore salvataggio scorecard: %s", e)
         flash(f"Errore durante il salvataggio: {e}", "error")
