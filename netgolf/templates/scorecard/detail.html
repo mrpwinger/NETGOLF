@@ -125,14 +125,14 @@
             <span class="value">{{ sc.fig_result.circolo }}</span>
           </div>
         </div>
-        <form method="post" action="{{ url_for('scorecard.link_fig', scorecard_id=sc.id) }}" ...>
+        <form method="post" action="{{ url_for('scorecard.unlink_fig', scorecard_id=sc.id) }}">
           <button type="submit" style="
             background:rgba(255,100,100,0.15);border:1px solid rgba(255,100,100,0.4);
             color:#ff8a9e;border-radius:8px;padding:8px 16px;font-size:12px;
             cursor:pointer;font-family:inherit">
             ✕ {{ _("Scollega dalla gara FIG") }}
-          </button>
-        </form>
+         </button>
+       </form>
       {% else %}
         <p style="font-size:13px;color:var(--gray-soft);margin-bottom:14px">
           {{ _("Nessuna gara FIG collegata.") }}
