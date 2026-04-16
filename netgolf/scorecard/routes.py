@@ -38,7 +38,6 @@ from .storage import (
     list_scorecards_for_user,
     get_scorecard,
     find_scorecard_for_gara,
-    find_matching_fig_result,
     link_scorecard_to_fig,
     unlink_scorecard_from_fig,
 )
