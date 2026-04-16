@@ -262,14 +262,29 @@ def confirm():
             header["stbl_lordo_totale"] += stbl_l
             header["stbl_netto_totale"] += stbl_n
 
-        sc = save_scorecard(current_user.id, header, holes)
+sc = save_scorecard(current_user.id, header, holes)
 
-        # Auto-match: cerca una gara FIG con stessa data e circolo
-        if sc.data_gara and sc.circolo:
-            fig = find_matching_fig_result(current_user.id, sc.data_gara, sc.circolo)
+        # Auto-match con storico FIG live
+        try:
+            from .storage import match_scorecard_to_storico
+            from netgolf.fig.service import FigService, FigCredentialsMissing
+            from netgolf.fig.client import FigError
+
+            service = FigService.from_app()
+            storico_data = service.fetch_storico(current_user)
+            fig = match_scorecard_to_storico(
+                user_id=current_user.id,
+                scorecard_data_gara=sc.data_gara,
+                scorecard_circolo=sc.circolo,
+                storico_results=storico_data.get("results", []),
+            )
             if fig:
-                link_scorecard_to_fig(sc.id, current_user.id, fig.id)
+                sc.fig_result_id = fig.id
+                from netgolf.db import db
+                db.session.commit()
                 flash(_("Scorecard collegata automaticamente alla gara FIG del %(data)s.", data=sc.data_gara), "info")
+        except Exception as e:
+            logger.warning("Auto-match FIG fallito (non bloccante): %s", e)
 
     except Exception as e:
         logger.exception("Errore salvataggio scorecard: %s", e)
