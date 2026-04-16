@@ -196,30 +196,98 @@ def find_scorecard_for_gara(user_id: int, fig_result_id: int) -> Optional[Scorec
         )
     ).scalar_one_or_none()
 
-def find_matching_fig_result(user_id: int, data_gara: str, circolo: str):
+def _date_fig_to_iso(data_fig: str) -> str | None:
+    """Converte 'DD/MM/YYYY' → 'YYYY-MM-DD'. Ritorna None se malformata."""
+    parts = (data_fig or "").strip().split("/")
+    if len(parts) != 3:
+        return None
+    try:
+        return f"{int(parts[2]):04d}-{int(parts[1]):02d}-{int(parts[0]):02d}"
+    except ValueError:
+        return None
+
+
+def _circolo_match(a: str, b: str) -> bool:
+    """Match fuzzy case-insensitive: uno contiene l'altro."""
+    a = (a or "").strip().upper()
+    b = (b or "").strip().upper()
+    return bool(a and b and (a in b or b in a))
+
+
+def find_or_create_fig_result(
+    user_id: int,
+    data_gara_iso: str,
+    circolo: str,
+    nome_torneo: str | None = None,
+    fig_data_raw: str | None = None,
+) -> "FigResult":
     """
-    Cerca una FigResult che corrisponde a data_gara e circolo (match fuzzy
-    sul circolo: contiene o è contenuto, case-insensitive).
-    Ritorna la prima trovata o None.
+    Cerca una FigResult per (user_id, data_gara, circolo).
+    Se non esiste la crea. Ritorna sempre un oggetto persistito.
     """
     from netgolf.db import db
     from netgolf.models import FigResult
 
-    candidates = db.session.execute(
+    existing = db.session.execute(
         db.select(FigResult).where(
             FigResult.user_id == user_id,
-            FigResult.data_gara == data_gara,
+            FigResult.data_gara == data_gara_iso,
         )
     ).scalars().all()
 
-    if not candidates:
+    for fig in existing:
+        if _circolo_match(fig.circolo, circolo):
+            return fig
+
+    # Non trovata: crea
+    fig = FigResult(
+        user_id=user_id,
+        data_gara=data_gara_iso,
+        circolo=circolo,
+        nome_torneo=nome_torneo,
+        fig_data_raw=fig_data_raw,
+    )
+    db.session.add(fig)
+    db.session.commit()
+    return fig
+
+
+def match_scorecard_to_storico(
+    user_id: int,
+    scorecard_data_gara: str | None,
+    scorecard_circolo: str | None,
+    storico_results: list[dict],
+) -> "FigResult | None":
+    """
+    Cerca nei risultati live dello storico FIG una gara che matcha
+    data + circolo della scorecard. Se trovata, crea/recupera la FigResult
+    e la ritorna. Ritorna None se nessun match.
+
+    storico_results: lista di dict dal client FIG (campo 'data' DD/MM/YYYY,
+    campo 'esecutore' per il circolo, campo 'gara' per il nome torneo).
+    """
+    if not scorecard_data_gara or not scorecard_circolo:
         return None
 
-    circolo_norm = (circolo or "").strip().upper()
-    for fig in candidates:
-        fig_norm = (fig.circolo or "").strip().upper()
-        if circolo_norm in fig_norm or fig_norm in circolo_norm:
-            return fig
+    for r in storico_results:
+        data_iso = _date_fig_to_iso(r.get("data", ""))
+        if not data_iso:
+            continue
+        if data_iso != scorecard_data_gara:
+            continue
+        circolo_fig = r.get("esecutore", "") or r.get("gara", "")
+        if not _circolo_match(circolo_fig, scorecard_circolo):
+            continue
+
+        # Match trovato
+        import json
+        return find_or_create_fig_result(
+            user_id=user_id,
+            data_gara_iso=data_iso,
+            circolo=circolo_fig,
+            nome_torneo=r.get("gara"),
+            fig_data_raw=json.dumps(r, ensure_ascii=False),
+        )
 
     return None
 
