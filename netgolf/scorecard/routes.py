@@ -12,20 +12,8 @@ Flask (sono qualche KB di JSON, va benissimo). NON salviamo nulla nel DB
 in Fase 1.
 """
 
-from .storage import (
-    save_scorecard,
-    list_scorecards_for_user,
-    get_scorecard,
-    find_scorecard_for_gara,
-    find_matching_fig_result,
-    link_scorecard_to_fig,
-    unlink_scorecard_from_fig,
-)
-
 from __future__ import annotations
-
 import logging
-
 from flask import (
     abort,
     current_app,
@@ -38,7 +26,6 @@ from flask import (
     url_for,
 )
 from flask_login import current_user, login_required
-
 from .ocr import (
     ScorecardImageError,
     ScorecardOCRConfigError,
@@ -46,12 +33,14 @@ from .ocr import (
     extract_scorecard,
 )
 from . import bp
-
 from .storage import (
     save_scorecard,
     list_scorecards_for_user,
     get_scorecard,
     find_scorecard_for_gara,
+    find_matching_fig_result,
+    link_scorecard_to_fig,
+    unlink_scorecard_from_fig,
 )
 
 logger = logging.getLogger(__name__)
