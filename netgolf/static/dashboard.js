@@ -212,7 +212,8 @@ async function loadAllData() {
     // Carica profilo e storico in parallelo
     const [profiloRes, storicoRes] = await Promise.all([
       fetch(PROXY_URL + '/api/fig/profilo', { headers: apiHeaders() }),
-      fetch(PROXY_URL + '/api/fig/storico', { headers: apiHeaders() })
+      fetch(PROXY_URL + '/api/fig/storico', { headers: apiHeaders() }),
+      fetch('/scorecard/api/scorecards-index', { headers: apiHeaders() })
     ]);
 
     if (profiloRes.ok) {
@@ -237,6 +238,13 @@ async function loadAllData() {
         state.user.hcp = storicoData.hcpHistory[storicoData.hcpHistory.length-1].value.toFixed(1);
     } else {
       console.log('[APP] storico fallito:', storicoRes.status);
+    }
+
+    if (scorecardsRes && scorecardsRes.ok) {
+      const scData = await scorecardsRes.json();
+      state.scorecards = scData.scorecards || [];
+    } else {
+      state.scorecards = [];
     }
 
     console.log('[APP] state.results:', state.results.length, '| _dataLoaded before:', state._dataLoaded);
@@ -360,6 +368,14 @@ function renderResults(filter = 'all') {
     const varNum = parseFloat((r.variazione || '0').replace(',','.'));
     const varColor = varNum > 0 ? 'var(--red-score)' : varNum < 0 ? 'var(--green-light)' : 'var(--gray-soft)';
     const varSign = varNum > 0 ? '+' : '';
+    const sc = findScorecardForResult(r);
+    const scorecardBadge = sc
+       ? '<a href="/scorecard/' + sc.id + '" onclick="event.stopPropagation()" ' +
+       'style="display:inline-flex;align-items:center;gap:4px;text-decoration:none;' +
+       'background:rgba(0,255,102,0.15);border:1px solid rgba(0,255,102,0.35);' +
+       'color:var(--green-accent);border-radius:6px;padding:3px 8px;font-size:11px;font-weight:600">' +
+       '📋 Scorecard</a>'
+       : '';
     return '<div class="result-card" style="animation-delay:' + (i*20) + 'ms" onclick="openDetail(' + r.id + ')">' +
       '<div class="rc-top">' +
         '<div class="rc-name">' + (r.gara || '—') + '</div>' +
@@ -372,6 +388,8 @@ function renderResults(filter = 'all') {
       '<div style="font-size:12px;color:var(--gray-soft);margin-bottom:8px">' + (r.esecutore || '') + ' · ' + (r.data || '') + '</div>' +
       '<div class="rc-meta">' +
         '<span class="badge badge-format">' + (r.formula || '—') + '</span>' +
+        // ... altri badge ...
+        (scorecardBadge ? '<span>' + scorecardBadge + '</span>' : '') +
         '<span class="badge badge-club">' + (r.buche || '—') + ' buche</span>' +
         (isValida(r.valida) ? '<span class="badge" style="background:rgba(76,175,80,0.2);color:var(--green-light)">✓ Valida</span>' : '<span class="badge" style="background:rgba(229,115,115,0.15);color:var(--red-score)">✗ Non valida</span>') +
         '<span class="badge badge-hcp">PHCP ' + (r.playingHcp || '—') + '</span>' +
@@ -1576,6 +1594,21 @@ setInterval(decorateStoricoWithScorecards, 2000);
 document.addEventListener('DOMContentLoaded', () => {
   setTimeout(decorateStoricoWithScorecards, 1500);
 });
+
+function findScorecardForResult(r) {
+  if (!state.scorecards || !state.scorecards.length) return null;
+  const dataFig = r.data || ''; // "DD/MM/YYYY"
+  // converti in YYYY-MM-DD
+  const parts = dataFig.split('/');
+  if (parts.length !== 3) return null;
+  const dataIso = parts[2] + '-' + parts[1].padStart(2,'0') + '-' + parts[0].padStart(2,'0');
+  const circoloFig = (r.esecutore || '').trim().toUpperCase();
+  return state.scorecards.find(sc => {
+    if (sc.data_gara !== dataIso) return false;
+    const a = sc.circolo, b = circoloFig;
+    return a && b && (a.includes(b) || b.includes(a));
+  }) || null;
+}
  
 /* ─────────────────────────────────────────────────────────────────────────
  * IMPORTANTE — prerequisito DOM:
