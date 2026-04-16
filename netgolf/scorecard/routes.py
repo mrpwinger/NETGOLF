@@ -466,3 +466,31 @@ def lookup():
         return jsonify(exists=True, scorecard_id=sc.id, stbl_lordo=sc.stbl_lordo_totale,
                        stbl_netto=sc.stbl_netto_totale, score_lordo=sc.score_lordo_totale)
     return jsonify(exists=False)
+
+@bp.post("/<int:scorecard_id>/link")
+@login_required
+def link_fig(scorecard_id: int):
+    """Collega manualmente la scorecard a una gara FIG."""
+    fig_result_id = request.form.get("fig_result_id", type=int)
+    if not fig_result_id:
+        flash(_("Seleziona una gara FIG."), "error")
+        return redirect(url_for("scorecard.detail", scorecard_id=scorecard_id))
+
+    ok = link_scorecard_to_fig(scorecard_id, current_user.id, fig_result_id)
+    if ok:
+        flash(_("Scorecard collegata alla gara FIG."), "success")
+    else:
+        flash(_("Collegamento non riuscito."), "error")
+    return redirect(url_for("scorecard.detail", scorecard_id=scorecard_id))
+
+
+@bp.post("/<int:scorecard_id>/unlink")
+@login_required
+def unlink_fig(scorecard_id: int):
+    """Scollega la scorecard dalla gara FIG (la scorecard resta intatta)."""
+    ok = unlink_scorecard_from_fig(scorecard_id, current_user.id)
+    if ok:
+        flash(_("Scorecard scollegata dalla gara FIG."), "success")
+    else:
+        flash(_("Scorecard non trovata."), "error")
+    return redirect(url_for("scorecard.detail", scorecard_id=scorecard_id))
