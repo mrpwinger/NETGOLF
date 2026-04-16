@@ -12,6 +12,16 @@ Flask (sono qualche KB di JSON, va benissimo). NON salviamo nulla nel DB
 in Fase 1.
 """
 
+from .storage import (
+    save_scorecard,
+    list_scorecards_for_user,
+    get_scorecard,
+    find_scorecard_for_gara,
+    find_matching_fig_result,
+    link_scorecard_to_fig,
+    unlink_scorecard_from_fig,
+)
+
 from __future__ import annotations
 
 import logging
@@ -264,6 +274,13 @@ def confirm():
             header["stbl_netto_totale"] += stbl_n
 
         sc = save_scorecard(current_user.id, header, holes)
+
+        # Auto-match: cerca una gara FIG con stessa data e circolo
+        if sc.data_gara and sc.circolo:
+            fig = find_matching_fig_result(current_user.id, sc.data_gara, sc.circolo)
+            if fig:
+                link_scorecard_to_fig(sc.id, current_user.id, fig.id)
+                flash(_("Scorecard collegata automaticamente alla gara FIG del %(data)s.", data=sc.data_gara), "info")
 
     except Exception as e:
         logger.exception("Errore salvataggio scorecard: %s", e)
