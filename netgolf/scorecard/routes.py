@@ -262,7 +262,7 @@ def confirm():
             header["stbl_lordo_totale"] += stbl_l
             header["stbl_netto_totale"] += stbl_n
 
-sc = save_scorecard(current_user.id, header, holes)
+        sc = save_scorecard(current_user.id, header, holes)
 
         # Auto-match con storico FIG live
         try:
