@@ -96,6 +96,73 @@
       {% if sc.fig_result_id %}<span style="color:var(--green-accent)"> · ✓ {{ _("collegata a gara FIG") }}</span>{% endif %}
     </p>
 
+    {# ── Sezione collegamento gara FIG ────────────────────────────── #}
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for cat, msg in messages %}
+        <div style="margin-bottom:12px;padding:10px 16px;border-radius:8px;font-size:13px;
+          background:{% if cat=='error' %}rgba(255,100,100,0.15){% else %}rgba(0,255,102,0.1){% endif %};
+          border:1px solid {% if cat=='error' %}rgba(255,100,100,0.4){% else %}rgba(0,255,102,0.3){% endif %};
+          color:{% if cat=='error' %}#ff8a9e{% else %}var(--green-accent){% endif %}">
+          {{ msg }}
+        </div>
+      {% endfor %}
+    {% endwith %}
+
+    <div class="section" style="margin-bottom:16px">
+      <div class="section-title">{{ _("Gara FIG") }}</div>
+      {% if sc.fig_result %}
+        <div class="info-grid" style="margin-bottom:14px">
+          <div class="info-row">
+            <span class="label">{{ _("Torneo") }}</span>
+            <span class="value">{{ sc.fig_result.nome_torneo or '—' }}</span>
+          </div>
+          <div class="info-row">
+            <span class="label">{{ _("Data") }}</span>
+            <span class="value">{{ sc.fig_result.data_gara }}</span>
+          </div>
+          <div class="info-row">
+            <span class="label">{{ _("Circolo") }}</span>
+            <span class="value">{{ sc.fig_result.circolo }}</span>
+          </div>
+        </div>
+        <form method="post" action="{{ url_for('scorecard.unlink_fig', scorecard_id=sc.id) }}">
+          <button type="submit" style="
+            background:rgba(255,100,100,0.15);border:1px solid rgba(255,100,100,0.4);
+            color:#ff8a9e;border-radius:8px;padding:8px 16px;font-size:12px;
+            cursor:pointer;font-family:inherit">
+            ✕ {{ _("Scollega dalla gara FIG") }}
+          </button>
+        </form>
+      {% else %}
+        <p style="font-size:13px;color:var(--gray-soft);margin-bottom:14px">
+          {{ _("Nessuna gara FIG collegata.") }}
+        </p>
+        {% if fig_results_candidati %}
+          <form method="post" action="{{ url_for('scorecard.link_fig', scorecard_id=sc.id) }}"
+                style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+            <select name="fig_result_id" style="
+              background:rgba(10,92,54,0.3);border:1px solid rgba(0,255,102,0.3);
+              color:var(--cream);border-radius:8px;padding:8px 12px;font-size:13px;
+              font-family:inherit;flex:1;min-width:200px">
+              {% for fig in fig_results_candidati %}
+                <option value="{{ fig.id }}">{{ fig.data_gara }} — {{ fig.circolo }}{% if fig.nome_torneo %} ({{ fig.nome_torneo }}){% endif %}</option>
+              {% endfor %}
+            </select>
+            <button type="submit" style="
+              background:rgba(0,255,102,0.15);border:1px solid rgba(0,255,102,0.4);
+              color:var(--green-accent);border-radius:8px;padding:8px 16px;font-size:12px;
+              cursor:pointer;font-family:inherit">
+              ✓ {{ _("Collega") }}
+            </button>
+          </form>
+        {% else %}
+          <p style="font-size:12px;color:var(--gray-soft)">
+            {{ _("Nessuna gara FIG disponibile nel tuo storico per questa data/circolo.") }}
+          </p>
+        {% endif %}
+      {% endif %}
+    </div>
+
     <div class="totals">
       <div class="tile primary">
         <div class="label">{{ _("AGS Lordo") }}</div>
