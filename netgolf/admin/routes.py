@@ -314,3 +314,32 @@ def campi_update():
         flash(f"Errore durante l'aggiornamento: {e}", "error")
 
     return redirect(url_for("admin.campi_update_form"))
+
+@bp.get("/migrate-db")
+@admin_required
+def migrate_db():
+    """Migrazione temporanea — da rimuovere dopo l'uso."""
+    from netgolf.db import db
+    results = []
+    commands = [
+        "ALTER TABLE scorecards ADD COLUMN source VARCHAR(20) NOT NULL DEFAULT 'ocr'",
+        "ALTER TABLE scorecards ADD COLUMN garmin_scorecard_id VARCHAR(40)",
+        "CREATE INDEX IF NOT EXISTS ix_scorecards_garmin_scorecard_id ON scorecards (garmin_scorecard_id)",
+        """CREATE TABLE IF NOT EXISTS garmin_credentials (
+            user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+            email VARCHAR(200) NOT NULL,
+            password_ciphertext TEXT NOT NULL,
+            password_nonce VARCHAR(32) NOT NULL,
+            created_at DATETIME NOT NULL,
+            updated_at DATETIME NOT NULL
+        )""",
+    ]
+    with db.engine.connect() as conn:
+        for cmd in commands:
+            try:
+                conn.execute(db.text(cmd))
+                results.append(f"OK: {cmd[:60]}...")
+            except Exception as e:
+                results.append(f"SKIP: {e}")
+        conn.commit()
+    return jsonify(ok=True, results=results)
