@@ -73,6 +73,38 @@ let state = {
   _dataLoaded: false
 };
 
+// ═══════════════════════════════════════════
+// SESSION CACHE (sessionStorage)
+// Persiste i dati FIG per tutta la sessione del tab.
+// Viene cancellato automaticamente alla chiusura del browser/tab.
+// ═══════════════════════════════════════════
+const CACHE_KEY = 'netgolf_fig_cache';
+
+function saveToSessionCache(data) {
+  try {
+    sessionStorage.setItem(CACHE_KEY, JSON.stringify(data));
+  } catch(e) {
+    console.warn('[CACHE] salvataggio fallito:', e);
+  }
+}
+
+function loadFromSessionCache() {
+  try {
+    const raw = sessionStorage.getItem(CACHE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch(e) {
+    console.warn('[CACHE] lettura fallita:', e);
+    return null;
+  }
+}
+
+function clearSessionCache() {
+  try {
+    sessionStorage.removeItem(CACHE_KEY);
+  } catch(e) {}
+}
+
 // ── BOOT: il login NETGOLF (email+pwd) è già avvenuto lato Flask.
 //     Quando arriviamo qui il cookie di sessione è valido e basta caricare i dati.
 async function tryAutoLogin() {
@@ -204,38 +236,57 @@ async function doLogin() { window.location.href = '/auth/login'; }
 state._dataLoaded = false;
 state._dataLoading = false;
 
-async function loadAllData() {
-  console.log('[LOAD] loadAllData START | results before:', state.results.length);
+async function loadAllData(forceRefresh = false) {
+  console.log('[LOAD] loadAllData START | forceRefresh:', forceRefresh);
   if (!state.user) state.user = {};
   const btn = document.getElementById('btn-login');
+
+  // Se non è un refresh forzato, prova a usare la cache
+  if (!forceRefresh) {
+    const cached = loadFromSessionCache();
+    if (cached) {
+      console.log('[CACHE] dati trovati in sessionStorage, skip fetch FIG');
+      state.results     = cached.results     || [];
+      state.hcpHistory  = cached.hcpHistory  || [];
+      state.scorecards  = cached.scorecards  || [];
+      if (cached.profile) {
+        state.user.profile     = cached.profile;
+        state.user.hcp         = cached.profile.handicapIndex || cached.profile.handicap_index || cached.hcp || '—';
+        state.user.displayName = ((cached.profile.nome||'') + ' ' + (cached.profile.cognome||'')).trim() || state.user.displayName;
+      }
+      state._dataLoaded = true;
+      switchToMain();
+      if (btn) btn.classList.remove('loading');
+      return;
+    }
+  }
+
   try {
-    // Carica profilo e storico in parallelo
     const [profiloRes, storicoRes, scorecardsRes] = await Promise.all([
-      fetch(PROXY_URL + '/api/fig/profilo', { headers: apiHeaders() }),
-      fetch(PROXY_URL + '/api/fig/storico', { headers: apiHeaders() }),
-      fetch('/scorecard/api/scorecards-index', { headers: apiHeaders() })
+      fetch(PROXY_URL + '/api/fig/profilo',          { headers: apiHeaders() }),
+      fetch(PROXY_URL + '/api/fig/storico',          { headers: apiHeaders() }),
+      fetch('/scorecard/api/scorecards-index',       { headers: apiHeaders() })
     ]);
 
     if (profiloRes.ok) {
       const profiloData = await profiloRes.json();
       const profile = profiloData.profile;
       if (profile) {
-        state.user.profile = profile;
+        state.user.profile     = profile;
         state.user.tessHistory = profiloData.tessHistory || [];
-        state.user.hcp = profile.handicapIndex || profile.handicap || '—';
+        state.user.hcp         = profile.handicapIndex || profile.handicap_index || profile.handicap || '—';
         const nome = ((profile.nome||'') + ' ' + (profile.cognome||'')).trim();
         state.user.displayName = nome || state.user.displayName;
       }
     }
 
-    console.log('[APP] storicoRes status:', storicoRes.status, storicoRes.ok);
     if (storicoRes.ok) {
       const storicoData = await storicoRes.json();
-      console.log('[APP] storico results:', storicoData.results?.length, '| hcpHistory:', storicoData.hcpHistory?.length);
-      state.results = storicoData.results || [];
-      state.hcpHistory = storicoData.hcpHistory || [];
-      if (!state.user.hcp && storicoData.hcpHistory?.length)
-        state.user.hcp = storicoData.hcpHistory[storicoData.hcpHistory.length-1].value.toFixed(1);
+      console.log('[APP] storico results:', storicoData.results?.length, '| hcpHistory:', storicoData.hcp_history?.length);
+      state.results    = storicoData.results     || [];
+      state.hcpHistory = storicoData.hcp_history || storicoData.hcpHistory || [];
+      if (!state.user.hcp && state.hcpHistory.length)
+        state.user.hcp = state.hcpHistory[state.hcpHistory.length-1].value.toFixed(1);
     } else {
       console.log('[APP] storico fallito:', storicoRes.status);
     }
@@ -247,20 +298,24 @@ async function loadAllData() {
       state.scorecards = [];
     }
 
-    console.log('[APP] state.results:', state.results.length, '| _dataLoaded before:', state._dataLoaded);
+    // Salva tutto in sessionStorage
+    saveToSessionCache({
+      results:    state.results,
+      hcpHistory: state.hcpHistory,
+      scorecards: state.scorecards,
+      profile:    state.user.profile,
+      hcp:        state.user.hcp,
+    });
+
     state._dataLoaded = true;
     switchToMain();
   } catch(e) {
     console.error('[LOAD] loadAllData ERROR:', e.message, e);
     showError('Errore di connessione. Riprova più tardi.');
-} finally {
+  } finally {
     if (btn) btn.classList.remove('loading');
   }
 }
-
-
-
-
 
 function showError(msg) {
   const el = document.getElementById('login-error');
@@ -1568,10 +1623,22 @@ async function refreshScorecards() {
     if (res.ok) {
       const data = await res.json();
       state.scorecards = data.scorecards || [];
+      // Aggiorna la cache con i nuovi dati scorecard
+      const cached = loadFromSessionCache();
+      if (cached) {
+        cached.scorecards = state.scorecards;
+        saveToSessionCache(cached);
+      }
     }
   } catch(e) {
     console.warn('refreshScorecards fallito:', e);
   }
+}
+
+// Esposto globalmente per poterlo chiamare da un bottone HTML
+function forceRefreshData() {
+  clearSessionCache();
+  loadAllData(true);
 }
  
 /* ─────────────────────────────────────────────────────────────────────────
