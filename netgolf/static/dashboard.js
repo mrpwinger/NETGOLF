@@ -1237,11 +1237,11 @@ function hgLoadTees() {
   if (sel.dataset.par) document.getElementById('hg-par').value = sel.dataset.par;
 
   const tees = JSON.parse(sel.dataset.tees);
-  tees.filter(t => t.cr && t.sr).forEach(t => {
+  tees.filter(t => t.cr && t.slope).forEach(t => {
     console.log('[HG] aggiungendo tee:', t);   // ← aggiungi
     const o = document.createElement('option');
-    o.value = JSON.stringify({ cr: t.cr, sr: t.sr });
-    o.textContent = (t.tee_nome || t.tee_id) + '  CR ' + t.cr + ' / SR ' + t.sr;
+    o.value = JSON.stringify({ cr: t.cr, sr: t.slope });
+    o.textContent = (t.tee_nome || t.tee_id) + '  CR ' + t.cr + ' / SR ' + t.slope;
     teeSel.appendChild(o);
   });
   teeSel.disabled = false;
@@ -1365,10 +1365,10 @@ function simLoadTees() {
 
   const tees = JSON.parse(selected.dataset.tees);
   tees.forEach(t => {
-    if (!t.cr || !t.sr) return;
+    if (!t.cr || !t.slope) return;
     const opt = document.createElement('option');
-    opt.value = JSON.stringify({ cr: t.cr, sr: t.sr });
-    opt.textContent = (t.tee_nome || 'Tee') + ' — CR ' + t.cr + ' / SR ' + t.sr;
+    opt.value = JSON.stringify({ cr: t.cr, sr: t.slope });
+    opt.textContent = (t.tee_nome || 'Tee') + ' — CR ' + t.cr + ' / SR ' + t.slope;
     teeSel.appendChild(opt);
   });
   teeSel.disabled = false;
