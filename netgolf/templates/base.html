@@ -29,6 +29,15 @@
           <div class="user-menu-dropdown">
             <a href="{{ url_for('main.dashboard') }}">{{ _('Dashboard') }}</a>
             <a href="{{ url_for('auth.profilo') }}">{{ _('Profilo') }}</a>
+                      <div class="user-menu-dropdown">
+            <a href="{{ url_for('main.dashboard') }}">{{ _('Dashboard') }}</a>
+            <a href="{{ url_for('auth.profilo') }}">{{ _('Profilo') }}</a>
+            <a href="{{ url_for('scorecard.list_view') }}">{{ _('Scorecard') }}</a>
+            <div class="divider"></div>
+            <a href="#" onclick="forceRefreshData();document.getElementById('userMenu').classList.remove('open');return false;">↺ {{ _('Aggiorna dati FIG') }}</a>
+            <div class="divider"></div>
+            <a href="{{ url_for('auth.logout') }}" class="logout">{{ _('Esci') }}</a>
+          </div>
             <div class="divider"></div>
             <a href="{{ url_for('auth.logout') }}" class="logout">{{ _('Esci') }}</a>
           </div>
