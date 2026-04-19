@@ -259,7 +259,7 @@ class ScorecardHole(db.Model):
 class GarminCredential(db.Model):
     """
     Credenziali Garmin Connect per un utente NETGOLF.
-    One-to-one con User. Stessa struttura di FigCredential.
+    One-to-one con User. Cifrata con AES-GCM come FigCredential.
     """
     __tablename__ = "garmin_credentials"
 
@@ -277,6 +277,3 @@ class GarminCredential(db.Model):
     )
 
     user: Mapped["User"] = relationship(back_populates="garmin_credential")
-
-    def __repr__(self) -> str:
-        return f"<GarminCredential user_id={self.user_id} email={self.email}>"
