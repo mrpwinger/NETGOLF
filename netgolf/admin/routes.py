@@ -314,3 +314,17 @@ def campi_update():
         flash(f"Errore durante l'aggiornamento: {e}", "error")
 
     return redirect(url_for("admin.campi_update_form"))
+
+@bp.get("/garmin-circoli-frequenti")
+@admin_required
+def garmin_circoli_frequenti():
+    from netgolf.models import Scorecard
+    from sqlalchemy import func
+    rows = db.session.execute(
+        db.select(Scorecard.circolo, func.count(Scorecard.id).label("n"))
+        .where(Scorecard.source == "garmin", Scorecard.user_id == 1)
+        .group_by(Scorecard.circolo)
+        .order_by(func.count(Scorecard.id).desc())
+        .limit(50)
+    ).all()
+    return jsonify(circoli=[{"circolo": r.circolo, "giri": r.n} for r in rows])
