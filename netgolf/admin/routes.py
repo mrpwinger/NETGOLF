@@ -16,7 +16,7 @@ from __future__ import annotations
 import os
 from functools import wraps
 
-from flask import current_app, jsonify, render_template, request
+from flask import current_app, jsonify, redirect, render_template, render_template_string, request, url_for
 from flask_login import current_user
 from sqlalchemy import desc, select
 
@@ -165,3 +165,152 @@ def access_log_download():
         )
     except Exception as e:
         return Response(f"errore lettura: {e}", status=500, mimetype="text/plain")
+
+
+# ── Aggiornamento campi_slope_cr.json da Excel FIG ───────────────────────────
+
+_CAMPI_UPDATE_TEMPLATE = """
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <title>Aggiorna Campi — NETGOLF Admin</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    :root {
+      --green-accent:#00FF66;--green-light:#00cc52;
+      --cream:#f0faf5;--white:#ffffff;--gray-soft:#6b8c7a;
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{
+      font-family:-apple-system,sans-serif;
+      background:linear-gradient(150deg,#071a10 0%,#0a2a1a 40%,#112240 100%);
+      color:var(--cream);min-height:100vh;padding:32px 16px;
+    }
+    .container{max-width:600px;margin:0 auto}
+    .back{color:var(--gray-soft);text-decoration:none;font-size:13px;display:inline-block;margin-bottom:20px}
+    .back:hover{color:var(--green-accent)}
+    h1{font-size:22px;font-weight:800;color:var(--white);margin-bottom:6px}
+    .sub{font-size:13px;color:var(--gray-soft);margin-bottom:28px}
+    .card{
+      background:rgba(10,92,54,0.1);border:1px solid rgba(0,255,102,0.15);
+      border-radius:14px;padding:24px;margin-bottom:16px;
+    }
+    .card-title{font-size:11px;font-weight:700;letter-spacing:2px;color:var(--green-light);
+      text-transform:uppercase;margin-bottom:16px}
+    label{display:block;font-size:13px;color:var(--gray-soft);margin-bottom:6px}
+    input[type=file]{
+      display:block;width:100%;padding:10px 14px;border-radius:8px;font-size:13px;
+      background:rgba(0,0,0,0.3);border:1px solid rgba(0,255,102,0.25);
+      color:var(--cream);font-family:inherit;cursor:pointer;
+    }
+    input[type=file]::file-selector-button{
+      background:rgba(0,255,102,0.15);border:1px solid rgba(0,255,102,0.3);
+      color:var(--green-accent);border-radius:6px;padding:4px 12px;font-size:12px;
+      cursor:pointer;margin-right:10px;font-family:inherit;
+    }
+    .btn-submit{
+      margin-top:18px;width:100%;padding:12px;border-radius:10px;font-size:14px;
+      font-weight:700;cursor:pointer;font-family:inherit;
+      background:rgba(0,255,102,0.2);border:1px solid rgba(0,255,102,0.5);
+      color:var(--green-accent);
+    }
+    .btn-submit:hover{background:rgba(0,255,102,0.3)}
+    .flash{padding:10px 16px;border-radius:8px;font-size:13px;margin-bottom:16px}
+    .flash-success{background:rgba(0,255,102,0.1);border:1px solid rgba(0,255,102,0.3);color:var(--green-accent)}
+    .flash-error{background:rgba(255,100,100,0.12);border:1px solid rgba(255,100,100,0.35);color:#ff8a9e}
+    .info-box{
+      background:rgba(77,159,255,0.08);border:1px solid rgba(77,159,255,0.2);
+      border-radius:10px;padding:14px 16px;font-size:12px;color:#8ac4ff;line-height:1.6;
+      margin-bottom:16px;
+    }
+    .info-box strong{color:#b8d9ff}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <a href="/admin" class="back">← Admin</a>
+    <h1>Aggiorna Campi FIG</h1>
+    <p class="sub">Importa il file Excel ufficiale FIG per aggiornare CR, Slope e Par di tutti i percorsi.</p>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for cat, msg in messages %}
+        <div class="flash flash-{{ cat }}">{{ msg }}</div>
+      {% endfor %}
+    {% endwith %}
+
+    <div class="info-box">
+      <strong>Formato atteso:</strong> foglio Excel FIG con colonne
+      Circolo · Percorso · PAR · poi coppie CR/Slope per ogni colore tee
+      (NERO, BIANCO, GIALLO, VERDE, BLU, ROSSO, ARANCIO).<br><br>
+      Il file <strong>campi_slope_cr.json</strong> corrente verrà salvato
+      come backup prima della sostituzione.
+    </div>
+
+    <div class="card">
+      <div class="card-title">Carica file Excel</div>
+      <form method="post" enctype="multipart/form-data">
+        <label for="excel_file">File .xlsx</label>
+        <input type="file" id="excel_file" name="excel_file" accept=".xlsx,.xls">
+        <button type="submit" class="btn-submit">↑ Importa e aggiorna JSON</button>
+      </form>
+    </div>
+  </div>
+</body>
+</html>
+"""
+
+
+@bp.get("/campi/update")
+@admin_required
+def campi_update_form():
+    """Pagina con form per caricare il file Excel dei campi FIG."""
+    return render_template_string(_CAMPI_UPDATE_TEMPLATE)
+
+
+@bp.post("/campi/update")
+@admin_required
+def campi_update():
+    """Riceve il file Excel, lo converte e aggiorna campi_slope_cr.json."""
+    from flask import flash
+    from pathlib import Path
+
+    f = request.files.get("excel_file")
+    if not f or not f.filename:
+        flash("Nessun file selezionato.", "error")
+        return redirect(url_for("admin.campi_update_form"))
+
+    if not f.filename.lower().endswith((".xlsx", ".xls")):
+        flash("Il file deve essere un foglio Excel (.xlsx).", "error")
+        return redirect(url_for("admin.campi_update_form"))
+
+    try:
+        from .excel_to_campi import update_campi_json_file
+
+        excel_bytes = f.read()
+
+        # Trova il percorso del JSON
+        cfg: AppConfig = current_app.config.get("NETGOLF")
+        if cfg and hasattr(cfg, "campi_slope_cr_path"):
+            json_path = Path(cfg.campi_slope_cr_path)
+        else:
+            # Fallback: cerca nella root del progetto
+            json_path = Path(current_app.root_path).parent / "campi_slope_cr.json"
+
+        n_record, backup_path = update_campi_json_file(excel_bytes, json_path)
+
+        msg = f"Aggiornamento completato: {n_record} percorsi importati."
+        if backup_path:
+            msg += f" Backup: {Path(backup_path).name}"
+        flash(msg, "success")
+
+    except ImportError as e:
+        flash(
+            f"Dipendenza mancante: {e}. "
+            "Aggiungi 'pandas' e 'openpyxl' al requirements.txt.",
+            "error",
+        )
+    except Exception as e:
+        flash(f"Errore durante l'aggiornamento: {e}", "error")
+
+    return redirect(url_for("admin.campi_update_form"))
