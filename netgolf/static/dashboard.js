@@ -316,7 +316,8 @@ function switchToMain() {
 
   // Render tutto
   renderSparkline();
-  renderResults();
+   // Aggiorna indice scorecard (può essere cambiato da dettaglio scorecard)
+  refreshScorecards().then(() => renderResults());
   renderCharts();
   renderProfile();
   renderHcpCalc();
@@ -1608,6 +1609,18 @@ function findScorecardForResult(r) {
     const a = sc.circolo, b = circoloFig;
     return a && b && (a.includes(b) || b.includes(a));
   }) || null;
+}
+
+async function refreshScorecards() {
+  try {
+    const res = await fetch('/scorecard/api/scorecards-index', { headers: apiHeaders() });
+    if (res.ok) {
+      const data = await res.json();
+      state.scorecards = data.scorecards || [];
+    }
+  } catch(e) {
+    console.warn('refreshScorecards fallito:', e);
+  }
 }
  
 /* ─────────────────────────────────────────────────────────────────────────
