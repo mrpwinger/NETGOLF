@@ -62,3 +62,26 @@ def delete_credentials():
     service = GarminService.from_app()
     service.delete_credentials(current_user)
     return jsonify(ok=True, message=_("Credenziali Garmin rimosse."))
+
+@bp.post("/scorecards/import")
+@login_required
+@_handle_garmin_errors
+def import_scorecards():
+    """
+    Scarica le scorecard Garmin e le importa nel DB NETGOLF.
+    Salta i duplicati (stessa data + circolo già importati da Garmin).
+    """
+    service = GarminService.from_app()
+    result = service.import_scorecards(current_user)
+    return jsonify(
+        ok=True,
+        importate=result["importate"],
+        saltate=result["saltate"],
+        errori=result["errori"],
+        message=_(
+            "Import completato: %(i)d importate, %(s)d già presenti, %(e)d errori.",
+            i=result["importate"],
+            s=result["saltate"],
+            e=result["errori"],
+        ),
+    )
