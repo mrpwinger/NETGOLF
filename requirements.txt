@@ -18,3 +18,5 @@ anthropic==0.39.0
 pandas
 openpyxl
 garminconnect
+beautifulsoup4
+requests
