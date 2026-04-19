@@ -40,6 +40,7 @@ from .storage import (
     find_scorecard_for_gara,
     link_scorecard_to_fig,
     unlink_scorecard_from_fig,
+    delete_scorecard,
 )
 
 logger = logging.getLogger(__name__)
