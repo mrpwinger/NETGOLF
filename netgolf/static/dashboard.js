@@ -314,10 +314,11 @@ function switchToMain() {
   if (nav) nav.style.display = '';
   document.querySelectorAll('.tab-btn, .nav-item').forEach(b => b.disabled = false);
 
+  // Aggiorna indice scorecard (può essere cambiato da dettaglio scorecard)
+  refreshScorecards().then(() => renderResults());
+  
   // Render tutto
   renderSparkline();
-   // Aggiorna indice scorecard (può essere cambiato da dettaglio scorecard)
-  refreshScorecards().then(() => renderResults());
   renderCharts();
   renderProfile();
   renderHcpCalc();
