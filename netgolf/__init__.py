@@ -29,9 +29,6 @@ from .crypto import FigCredentialCipher, PasswordService
 from .db import db
 from .i18n import init_babel
 
-from .garmin import bp as garmin_bp
-app.register_blueprint(garmin_bp)
-
 def create_app(
     config_path: str | Path = "config.yaml",
     project_root: str | Path | None = None,
@@ -160,7 +157,8 @@ def create_app(
     from .gesgolf import bp as gesgolf_bp
     from .main import bp as main_bp
     from .scorecard import bp as scorecard_bp
-
+    from .garmin import bp as garmin_bp
+    app.register_blueprint(garmin_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
     app.register_blueprint(fig_bp)
