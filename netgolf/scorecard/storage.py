@@ -342,3 +342,25 @@ def unlink_scorecard_from_fig(scorecard_id: int, user_id: int) -> bool:
     sc.fig_result_id = None
     db.session.commit()
     return True
+
+def delete_scorecard(scorecard_id: int, user_id: int) -> bool:
+    """
+    Cancella una scorecard e le relative buche (cascade).
+    Ritorna True se cancellata, False se non trovata o non appartiene all'utente.
+    """
+    from netgolf.db import db
+    from netgolf.models import Scorecard
+
+    sc = db.session.execute(
+        db.select(Scorecard).where(
+            Scorecard.id == scorecard_id,
+            Scorecard.user_id == user_id,
+        )
+    ).scalar_one_or_none()
+
+    if not sc:
+        return False
+
+    db.session.delete(sc)
+    db.session.commit()
+    return True
