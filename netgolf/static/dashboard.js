@@ -1231,7 +1231,8 @@ function hgLoadTees() {
   ['hg-cr','hg-sr','hg-par'].forEach(id => document.getElementById(id).value = '');
   const sel = percSel.options[percSel.selectedIndex];
   if (!sel || !sel.dataset.tees) return;
-
+  console.log('[HG] dataset.tees raw:', sel.dataset.tees);   // ← aggiungi
+  console.log('[HG] dataset.par:', sel.dataset.par);          // ← aggiungi
   // Precompila par dal percorso (non più stima da CR)
   if (sel.dataset.par) document.getElementById('hg-par').value = sel.dataset.par;
 
