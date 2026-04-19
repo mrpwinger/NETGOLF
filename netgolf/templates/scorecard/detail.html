@@ -85,6 +85,28 @@
     .legend .dot{display:inline-block;width:8px;height:8px;border-radius:2px;vertical-align:middle;margin-right:4px}
     .legend .dot.yellow{background:var(--warn-yellow)}
     .legend .dot.blue{background:var(--info-blue)}
+
+    .btn-danger{
+      background:rgba(255,50,50,0.12);border:1px solid rgba(255,80,80,0.35);
+      color:#ff6b6b;border-radius:8px;padding:10px 20px;font-size:13px;
+      cursor:pointer;font-family:inherit;font-weight:600;
+    }
+    .btn-danger:hover{background:rgba(255,50,50,0.22)}
+    .btn-unlink{
+      background:rgba(255,100,100,0.15);border:1px solid rgba(255,100,100,0.4);
+      color:#ff8a9e;border-radius:8px;padding:8px 16px;font-size:12px;
+      cursor:pointer;font-family:inherit;
+    }
+    .btn-link{
+      background:rgba(0,255,102,0.15);border:1px solid rgba(0,255,102,0.4);
+      color:var(--green-accent);border-radius:8px;padding:8px 16px;font-size:12px;
+      cursor:pointer;font-family:inherit;white-space:nowrap;
+    }
+    select.fig-select{
+      background:rgba(10,92,54,0.3);border:1px solid rgba(0,255,102,0.3);
+      color:var(--cream);border-radius:8px;padding:8px 12px;font-size:13px;
+      font-family:inherit;flex:1;min-width:0;width:100%;
+    }
   </style>
 </head>
 <body>
@@ -96,7 +118,7 @@
       {% if sc.fig_result_id %}<span style="color:var(--green-accent)"> · ✓ {{ _("collegata a gara FIG") }}</span>{% endif %}
     </p>
 
-    {# ── Sezione collegamento gara FIG ────────────────────────────── #}
+    {# ── Flash messages ─────────────────────────────────────────────── #}
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% for cat, msg in messages %}
         <div style="margin-bottom:12px;padding:10px 16px;border-radius:8px;font-size:13px;
@@ -108,6 +130,7 @@
       {% endfor %}
     {% endwith %}
 
+    {# ── Sezione collegamento gara FIG ──────────────────────────────── #}
     <div class="section" style="margin-bottom:16px">
       <div class="section-title">{{ _("Gara FIG") }}</div>
       {% if sc.fig_result %}
@@ -126,33 +149,24 @@
           </div>
         </div>
         <form method="post" action="{{ url_for('scorecard.unlink_fig', scorecard_id=sc.id) }}">
-          <button type="submit" style="
-            background:rgba(255,100,100,0.15);border:1px solid rgba(255,100,100,0.4);
-            color:#ff8a9e;border-radius:8px;padding:8px 16px;font-size:12px;
-            cursor:pointer;font-family:inherit">
-            ✕ {{ _("Scollega dalla gara FIG") }}
-         </button>
-       </form>
+          <button type="submit" class="btn-unlink">✕ {{ _("Scollega dalla gara FIG") }}</button>
+        </form>
       {% else %}
         <p style="font-size:13px;color:var(--gray-soft);margin-bottom:14px">
           {{ _("Nessuna gara FIG collegata.") }}
         </p>
         {% if fig_results_candidati %}
-          <form method="post" action="{{ url_for('scorecard.link_fig', scorecard_id=sc.id) }}" ...>
-                style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-<select name="fig_result_key" style="...">
-  {% for fig in fig_results_candidati %}
-    <option value="{{ fig._key }}">
-      {{ fig.data_gara }} — {{ fig.circolo }}{% if fig.nome_torneo %} ({{ fig.nome_torneo }}){% endif %}
-    </option>
-  {% endfor %}
-</select>
-            <button type="submit" style="
-              background:rgba(0,255,102,0.15);border:1px solid rgba(0,255,102,0.4);
-              color:var(--green-accent);border-radius:8px;padding:8px 16px;font-size:12px;
-              cursor:pointer;font-family:inherit">
-              ✓ {{ _("Collega") }}
-            </button>
+          <form method="post" action="{{ url_for('scorecard.link_fig', scorecard_id=sc.id) }}">
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+              <select name="fig_result_key" class="fig-select">
+                {% for fig in fig_results_candidati %}
+                  <option value="{{ fig._key }}">
+                    {{ fig.data_gara }} — {{ fig.circolo }}{% if fig.nome_torneo %} ({{ fig.nome_torneo }}){% endif %}
+                  </option>
+                {% endfor %}
+              </select>
+              <button type="submit" class="btn-link">✓ {{ _("Collega") }}</button>
+            </div>
           </form>
         {% else %}
           <p style="font-size:12px;color:var(--gray-soft)">
@@ -162,6 +176,7 @@
       {% endif %}
     </div>
 
+    {# ── Totali ─────────────────────────────────────────────────────── #}
     <div class="totals">
       <div class="tile primary">
         <div class="label">{{ _("AGS Lordo") }}</div>
@@ -177,6 +192,7 @@
       </div>
     </div>
 
+    {# ── Dati gara ──────────────────────────────────────────────────── #}
     <div class="section">
       <div class="section-title">{{ _("Dati gara") }}</div>
       <div class="info-grid">
@@ -189,6 +205,7 @@
       </div>
     </div>
 
+    {# ── Buca per buca ──────────────────────────────────────────────── #}
     <div class="section">
       <div class="section-title">{{ _("Buca per buca") }}</div>
       <table class="holes">
@@ -241,6 +258,14 @@
         <span class="it"><span class="dot blue"></span>{{ _("X = no return → AGS = net double bogey") }}</span>
         <span class="it"><span class="dot yellow"></span>{{ _("score capato a net double bogey") }}</span>
       </div>
+    </div>
+
+    {# ── Cancella scorecard ─────────────────────────────────────────── #}
+    <div style="margin-top:32px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.06);text-align:right">
+      <form method="post" action="{{ url_for('scorecard.delete', scorecard_id=sc.id) }}"
+            onsubmit="return confirm('{{ _("Sei sicuro di voler cancellare questa scorecard? L\'operazione non è reversibile.") }}')">
+        <button type="submit" class="btn-danger">🗑 {{ _("Cancella scorecard") }}</button>
+      </form>
     </div>
 
   </div>
