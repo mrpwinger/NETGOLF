@@ -531,7 +531,7 @@ def link_fig(scorecard_id: int):
 @bp.post("/<int:scorecard_id>/unlink")
 @login_required
 def unlink_fig(scorecard_id: int):
-    """Scollega la scorecard dalla gara FIG (la scorecard resta intatta)."""
+    from flask_babel import gettext as _
     ok = unlink_scorecard_from_fig(scorecard_id, current_user.id)
     if ok:
         flash(_("Scorecard scollegata dalla gara FIG."), "success")
