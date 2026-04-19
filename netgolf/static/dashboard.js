@@ -1238,6 +1238,7 @@ function hgLoadTees() {
 
   const tees = JSON.parse(sel.dataset.tees);
   tees.filter(t => t.cr && t.sr).forEach(t => {
+    console.log('[HG] aggiungendo tee:', t);   // ← aggiungi
     const o = document.createElement('option');
     o.value = JSON.stringify({ cr: t.cr, sr: t.sr });
     o.textContent = (t.tee_nome || t.tee_id) + '  CR ' + t.cr + ' / SR ' + t.sr;
