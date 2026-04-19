@@ -1181,20 +1181,21 @@ async function hgPopulateCircoli() {
     const r = await fetch(PROXY_URL + '/api/campi', { headers: apiHeaders() });
     if (!r.ok) return;
     const data = await r.json();
-    const circoli = (data.circoli || []).filter(c => c.percorsi && c.percorsi.length > 0);
+    const circoli = (data.circoli || []).filter(c => c.nome);  // solo filtro nome
     circoli.sort((a, b) => a.nome.localeCompare(b.nome));
     circoli.forEach(c => {
       const o = document.createElement('option');
       o.value = c.nome; o.textContent = c.nome;
       sel.appendChild(o);
     });
-    // Pre-seleziona circolo dell'ultima gara
     const lastGame = state.results && state.results[0];
     if (lastGame) {
-      const match = circoli.find(c => c.nome.includes((lastGame.esecutore||'').split(' ')[0].toUpperCase()));
+      const match = circoli.find(c =>
+        c.nome.includes((lastGame.esecutore || '').split(' ')[0].toUpperCase())
+      );
       if (match) { sel.value = match.nome; hgLoadPercorsi(); }
     }
-  } catch(e) {}
+  } catch(e) { console.warn('hgPopulateCircoli error:', e); }
 }
 
 async function hgLoadPercorsi() {
@@ -1214,6 +1215,7 @@ async function hgLoadPercorsi() {
       const o = document.createElement('option');
       o.value = p.id; o.textContent = p.nome;
       o.dataset.tees = JSON.stringify(p.tees || []);
+      o.dataset.par  = p.par || '';          // ← aggiungi questa riga
       percSel.appendChild(o);
     });
     percSel.disabled = false;
@@ -1229,6 +1231,10 @@ function hgLoadTees() {
   ['hg-cr','hg-sr','hg-par'].forEach(id => document.getElementById(id).value = '');
   const sel = percSel.options[percSel.selectedIndex];
   if (!sel || !sel.dataset.tees) return;
+
+  // Precompila par dal percorso (non più stima da CR)
+  if (sel.dataset.par) document.getElementById('hg-par').value = sel.dataset.par;
+
   const tees = JSON.parse(sel.dataset.tees);
   tees.filter(t => t.cr && t.sr).forEach(t => {
     const o = document.createElement('option');
@@ -1247,9 +1253,7 @@ function hgSelectTee() {
     const { cr, sr } = JSON.parse(val);
     document.getElementById('hg-cr').value = cr;
     document.getElementById('hg-sr').value = sr;
-    // Par = round(CR) come stima
-    if (!document.getElementById('hg-par').value)
-      document.getElementById('hg-par').value = Math.round(parseFloat(cr));
+    // Par non viene sovrascritto: è già compilato da hgLoadTees
   } catch(e) {}
 }
 
@@ -1297,31 +1301,26 @@ function calcHcpGioco() {
 // ── Helpers dropdown simulazione ────────────────────────────
 async function simPopulateCircoli() {
   const sel = document.getElementById('sim-circolo-sel');
-  if (!sel || sel.options.length > 1) return; // già popolato
+  if (!sel || sel.options.length > 1) return;
   try {
     const r = await fetch(PROXY_URL + '/api/campi', { headers: apiHeaders() });
-    console.log('[SIM] /api/campi status:', r.status);
     if (!r.ok) return;
     const data = await r.json();
-    console.log('[SIM] campi totale:', data.totale, '| aggiornato:', data.aggiornato);
-    console.log('[SIM] primo circolo raw:', JSON.stringify((data.circoli||[])[0]));
-    // Accetta circoli con o senza percorsi
-    const circoli = (data.circoli || []).filter(c => c.nome);
-    console.log('[SIM] circoli totali:', circoli.length, '| con percorsi:', circoli.filter(c=>c.percorsi&&c.percorsi.length>0).length);
-    circoli.sort((a,b) => a.nome.localeCompare(b.nome));
+    const circoli = (data.circoli || []).filter(c => c.nome);  // solo filtro nome
+    circoli.sort((a, b) => a.nome.localeCompare(b.nome));
     circoli.forEach(c => {
       const opt = document.createElement('option');
-      opt.value = c.nome;
-      opt.textContent = c.nome;
+      opt.value = c.nome; opt.textContent = c.nome;
       sel.appendChild(opt);
     });
-    // Pre-seleziona il circolo dell'ultima gara se disponibile
     const lastGame = state.results && state.results[0];
     if (lastGame && lastGame.esecutore) {
-      const match = circoli.find(c => c.nome.includes(lastGame.esecutore.split(' ')[0].toUpperCase()));
+      const match = circoli.find(c =>
+        c.nome.includes(lastGame.esecutore.split(' ')[0].toUpperCase())
+      );
       if (match) { sel.value = match.nome; simLoadPercorsi(); }
     }
-  } catch(e) {}
+  } catch(e) { console.warn('simPopulateCircoli error:', e); }
 }
 
 async function simLoadPercorsi() {
@@ -1342,6 +1341,7 @@ async function simLoadPercorsi() {
       opt.value = p.id;
       opt.textContent = p.nome;
       opt.dataset.tees = JSON.stringify(p.tees || []);
+      opt.dataset.par  = p.par || '';          // ← aggiungi
       percSel.appendChild(opt);
     });
     percSel.disabled = false;
@@ -1356,9 +1356,14 @@ function simLoadTees() {
   teeSel.disabled  = true;
   const selected = percSel.options[percSel.selectedIndex];
   if (!selected || !selected.dataset.tees) return;
+
+  // Precompila par dal percorso
+  const parEl = document.getElementById('sim-par');
+  if (parEl && selected.dataset.par) parEl.value = selected.dataset.par;
+
   const tees = JSON.parse(selected.dataset.tees);
   tees.forEach(t => {
-    if (!t.cr || !t.sr) return; // salta tee senza CR/SR
+    if (!t.cr || !t.sr) return;
     const opt = document.createElement('option');
     opt.value = JSON.stringify({ cr: t.cr, sr: t.sr });
     opt.textContent = (t.tee_nome || 'Tee') + ' — CR ' + t.cr + ' / SR ' + t.sr;
