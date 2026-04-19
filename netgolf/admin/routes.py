@@ -328,3 +328,122 @@ def garmin_circoli_frequenti():
         .limit(50)
     ).all()
     return jsonify(circoli=[{"circolo": r.circolo, "giri": r.n} for r in rows])
+
+@bp.get("/hole19/scrape")
+@admin_required
+def hole19_scrape_form():
+    """Form per scraping stroke index da Hole19."""
+    return render_template_string(_HOLE19_SCRAPE_TEMPLATE)
+
+
+@bp.post("/hole19/scrape")
+@admin_required
+def hole19_scrape():
+    """Scrapa lo stroke index da Hole19 per un URL dato."""
+    import re
+    import requests
+    from bs4 import BeautifulSoup
+
+    url = request.form.get("url", "").strip()
+    circolo = request.form.get("circolo", "").strip()
+    percorso = request.form.get("percorso", "").strip()
+
+    if not url or not circolo or not percorso:
+        return jsonify(error="URL, circolo e percorso sono obbligatori."), 400
+
+    try:
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                          "AppleWebKit/537.36 (KHTML, like Gecko) "
+                          "Chrome/120.0.0.0 Safari/537.36",
+            "Accept-Language": "it-IT,it;q=0.9,en;q=0.8",
+        }
+        r = requests.get(url, headers=headers, timeout=20)
+        if r.status_code != 200:
+            return jsonify(error=f"Hole19 ha risposto {r.status_code}."), 502
+
+        soup = BeautifulSoup(r.text, "html.parser")
+
+        # Cerca tutte le tabelle con dati scorecard
+        holes_data = {}  # {numero_buca: stroke_index}
+
+        tables = soup.find_all("table")
+        for table in tables:
+            rows = table.find_all("tr")
+            for row in rows:
+                cols = row.find_all(["td", "th"])
+                if len(cols) < 3:
+                    continue
+                try:
+                    # Prima colonna = numero buca, ultima colonna rilevante = S.I.
+                    first = cols[0].get_text(strip=True)
+                    buca_num = int(first)
+                    # Cerca la colonna S.I. guardando l'header
+                    header_row = table.find("tr")
+                    if header_row:
+                        headers_cols = header_row.find_all(["th", "td"])
+                        si_idx = None
+                        for idx, h in enumerate(headers_cols):
+                            if "S.I" in h.get_text() or "si" in h.get_text(strip=True).lower():
+                                si_idx = idx
+                                break
+                        if si_idx and si_idx < len(cols):
+                            si_val = cols[si_idx].get_text(strip=True)
+                            if si_val.isdigit():
+                                holes_data[buca_num] = int(si_val)
+                except (ValueError, IndexError):
+                    continue
+
+        if not holes_data:
+            return jsonify(
+                error="Nessun dato S.I. trovato nella pagina. "
+                      "Verifica che l'URL sia corretto e che la pagina mostri il segnapunti completo."
+            ), 404
+
+        # Ordina per numero buca
+        hcp_list = [holes_data.get(i) for i in range(1, 19)]
+
+        # Aggiorna campi_slope_cr.json
+        import json
+        from pathlib import Path
+        from flask import current_app
+
+        cfg = current_app.config.get("NETGOLF")
+        if cfg and hasattr(cfg, "campi_slope_cr_path"):
+            json_path = Path(cfg.campi_slope_cr_path)
+        else:
+            json_path = Path(current_app.root_path).parent / "campi_slope_cr.json"
+
+        with open(json_path, "r", encoding="utf-8") as f:
+            records = json.load(f)
+
+        updated = 0
+        for rec in records:
+            if (rec.get("circolo", "").upper() == circolo.upper() and
+                    rec.get("percorso", "").upper() == percorso.upper()):
+                rec["hcp"] = hcp_list
+                updated += 1
+
+        if updated == 0:
+            return jsonify(
+                warning=f"Dati scrappati ma nessun percorso trovato nel JSON "
+                        f"per circolo='{circolo}' percorso='{percorso}'.",
+                holes_data=holes_data,
+                hcp_list=hcp_list,
+            )
+
+        with open(json_path, "w", encoding="utf-8") as f:
+            json.dump(records, f, ensure_ascii=False, indent=2)
+
+        return jsonify(
+            ok=True,
+            message=f"Stroke index salvato per {circolo} — {percorso}.",
+            holes_data=holes_data,
+            hcp_list=hcp_list,
+            records_updated=updated,
+        )
+
+    except Exception as e:
+        return jsonify(error=f"Errore scraping: {e}"), 500
+
+"""
