@@ -29,6 +29,8 @@ from .crypto import FigCredentialCipher, PasswordService
 from .db import db
 from .i18n import init_babel
 
+from .garmin import bp as garmin_bp
+app.register_blueprint(garmin_bp)
 
 def create_app(
     config_path: str | Path = "config.yaml",
