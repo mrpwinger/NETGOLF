@@ -1598,6 +1598,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function findScorecardForResult(r) {
+  console.log('[SC] state.scorecards:', state.scorecards?.length, JSON.stringify(state.scorecards));
   if (!state.scorecards || !state.scorecards.length) return null;
   const dataFig = r.data || ''; // "DD/MM/YYYY"
   // converti in YYYY-MM-DD
