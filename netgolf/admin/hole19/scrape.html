@@ -1,0 +1,74 @@
+_HOLE19_SCRAPE_TEMPLATE = 
+
+
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <title>Hole19 Scraper — NETGOLF Admin</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    :root{--green-accent:#00FF66;--green-light:#00cc52;--cream:#f0faf5;--white:#fff;--gray-soft:#6b8c7a}
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:-apple-system,sans-serif;background:linear-gradient(150deg,#071a10 0%,#0a2a1a 40%,#112240 100%);color:var(--cream);min-height:100vh;padding:32px 16px}
+    .container{max-width:640px;margin:0 auto}
+    .back{color:var(--gray-soft);text-decoration:none;font-size:13px;display:inline-block;margin-bottom:20px}
+    h1{font-size:22px;font-weight:800;color:var(--white);margin-bottom:6px}
+    .sub{font-size:13px;color:var(--gray-soft);margin-bottom:24px}
+    .card{background:rgba(10,92,54,0.1);border:1px solid rgba(0,255,102,0.15);border-radius:14px;padding:24px;margin-bottom:16px}
+    label{display:block;font-size:12px;color:var(--gray-soft);margin-bottom:4px;margin-top:12px}
+    input{display:block;width:100%;padding:10px 14px;border-radius:8px;font-size:13px;background:rgba(0,0,0,0.3);border:1px solid rgba(0,255,102,0.25);color:var(--cream);font-family:inherit}
+    .btn{margin-top:18px;width:100%;padding:12px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;background:rgba(0,255,102,0.2);border:1px solid rgba(0,255,102,0.5);color:var(--green-accent)}
+    .result{margin-top:16px;padding:14px;border-radius:10px;font-size:13px;font-family:monospace;white-space:pre-wrap;display:none}
+    .result.ok{background:rgba(0,255,102,0.08);border:1px solid rgba(0,255,102,0.3);color:var(--green-accent)}
+    .result.err{background:rgba(255,80,80,0.1);border:1px solid rgba(255,80,80,0.3);color:#ff8a9e}
+    .hint{font-size:11px;color:var(--gray-soft);margin-top:4px}
+  </style>
+</head>
+<body>
+<div class="container">
+  <a href="/admin" class="back">← Admin</a>
+  <h1>Hole19 Stroke Index Scraper</h1>
+  <p class="sub">Scrapa lo stroke index da una pagina Hole19 e lo salva nel campi_slope_cr.json.</p>
+  <div class="card">
+    <form id="scrape-form">
+      <label>URL Hole19</label>
+      <input type="url" id="h19-url" placeholder="https://www.hole19golf.com/courses/arzaga-golf-club-jack-nicklaus-ii" required>
+      <p class="hint">Incolla l'URL completo della pagina del percorso su Hole19.</p>
+      <label>Circolo (esatto come nel JSON)</label>
+      <input type="text" id="h19-circolo" placeholder="ARZAGA" required>
+      <label>Percorso (esatto come nel JSON)</label>
+      <input type="text" id="h19-percorso" placeholder="18 Buche Par 72" required>
+      <p class="hint">I valori devono corrispondere esattamente a quelli nel campi_slope_cr.json.</p>
+      <button type="button" class="btn" onclick="doScrape()">↓ Scrapa e salva</button>
+    </form>
+    <div id="result" class="result"></div>
+  </div>
+</div>
+<script>
+async function doScrape() {
+  const url = document.getElementById('h19-url').value.trim();
+  const circolo = document.getElementById('h19-circolo').value.trim();
+  const percorso = document.getElementById('h19-percorso').value.trim();
+  const res = document.getElementById('result');
+  res.style.display = 'none';
+
+  const form = new FormData();
+  form.append('url', url);
+  form.append('circolo', circolo);
+  form.append('percorso', percorso);
+
+  const r = await fetch('/admin/hole19/scrape', {method:'POST', body: form});
+  const data = await r.json();
+  res.style.display = 'block';
+  if (data.ok) {
+    res.className = 'result ok';
+    res.textContent = data.message + '\\n\\nHcp: ' + JSON.stringify(data.hcp_list);
+  } else {
+    res.className = 'result err';
+    res.textContent = data.error || data.warning || JSON.stringify(data);
+  }
+}
+</script>
+</body>
+</html>
