@@ -37,6 +37,10 @@ class User(db.Model, UserMixin):
         cascade="all, delete-orphan",
     )
 
+    garmin_credential: Mapped["GarminCredential | None"] = relationship(
+        back_populates="user", uselist=False, cascade="all, delete-orphan"
+    )
+
     def __repr__(self) -> str:
         return f"<User id={self.id} email={self.email!r}>"
 
@@ -251,3 +255,28 @@ class ScorecardHole(db.Model):
     __table_args__ = (
         db.UniqueConstraint("scorecard_id", "buca", name="uq_scorecardhole_card_buca"),
     )
+
+class GarminCredential(db.Model):
+    """
+    Credenziali Garmin Connect per un utente NETGOLF.
+    One-to-one con User. Stessa struttura di FigCredential.
+    """
+    __tablename__ = "garmin_credentials"
+
+    user_id: Mapped[int] = mapped_column(
+        db.ForeignKey("users.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    email: Mapped[str] = mapped_column(db.String(200), nullable=False)
+    password_ciphertext: Mapped[str] = mapped_column(db.Text, nullable=False)
+    password_nonce: Mapped[str] = mapped_column(db.String(32), nullable=False)
+
+    created_at: Mapped[datetime] = mapped_column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+    )
+
+    user: Mapped["User"] = relationship(back_populates="garmin_credential")
+
+    def __repr__(self) -> str:
+        return f"<GarminCredential user_id={self.user_id} email={self.email}>"
