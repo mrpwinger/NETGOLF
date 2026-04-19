@@ -557,3 +557,14 @@ def scorecards_index():
         }
         for sc in cards
     ])
+
+@bp.post("/<int:scorecard_id>/delete")
+@login_required
+def delete(scorecard_id: int):
+    from flask_babel import gettext as _
+    ok = delete_scorecard(scorecard_id, current_user.id)
+    if ok:
+        flash(_("Scorecard cancellata."), "success")
+    else:
+        flash(_("Scorecard non trovata."), "error")
+    return redirect(url_for("scorecard.list_view"))
