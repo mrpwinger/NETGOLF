@@ -17,3 +17,4 @@ pillow-heif==0.18.0
 anthropic==0.39.0
 pandas
 openpyxl
+garminconnect
