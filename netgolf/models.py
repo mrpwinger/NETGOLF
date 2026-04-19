@@ -219,6 +219,11 @@ class Scorecard(db.Model):
         cascade="all, delete-orphan",
         order_by="ScorecardHole.buca",
     )
+
+# Aggiungi questi due campi al modello Scorecard, dopo i campi esistenti:
+    source: Mapped[str] = mapped_column(db.String(20), default="ocr", nullable=False)
+# "ocr" = caricata manualmente via foto, "garmin" = importata da Garmin Connect
+    garmin_scorecard_id: Mapped[str | None] = mapped_column(db.String(40), index=True)
  
  
 class ScorecardHole(db.Model):
