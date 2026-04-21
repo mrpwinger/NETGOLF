@@ -548,9 +548,9 @@ class FigClient:
                 except ValueError:
                     pass
 
-    results.sort(key=lambda r: parse_date(r["data"]), reverse=True)
-    hcp_history.sort(key=lambda r: parse_date(r["date"]))
-    return results, hcp_history
+        results.sort(key=lambda r: parse_date(r["data"]), reverse=True)
+        hcp_history.sort(key=lambda r: parse_date(r["date"]))
+        return results, hcp_history
 
     # ── Utils ────────────────────────────────────────────────────────────
 
