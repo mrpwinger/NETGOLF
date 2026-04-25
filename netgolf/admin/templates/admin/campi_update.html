@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <title>Aggiorna Campi — NETGOLF Admin</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    :root{--green-accent:#00FF66;--green-light:#00cc52;--cream:#f0faf5;--white:#fff;--gray-soft:#6b8c7a}
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:-apple-system,sans-serif;background:linear-gradient(150deg,#071a10 0%,#0a2a1a 40%,#112240 100%);color:var(--cream);min-height:100vh;padding:32px 16px}
+    .container{max-width:600px;margin:0 auto}
+    .back{color:var(--gray-soft);text-decoration:none;font-size:13px;display:inline-block;margin-bottom:20px}
+    h1{font-size:22px;font-weight:800;color:var(--white);margin-bottom:6px}
+    .sub{font-size:13px;color:var(--gray-soft);margin-bottom:28px}
+    .card{background:rgba(10,92,54,0.1);border:1px solid rgba(0,255,102,0.15);border-radius:14px;padding:24px;margin-bottom:16px}
+    label{display:block;font-size:13px;color:var(--gray-soft);margin-bottom:6px}
+    input[type=file]{display:block;width:100%;padding:10px 14px;border-radius:8px;font-size:13px;background:rgba(0,0,0,0.3);border:1px solid rgba(0,255,102,0.25);color:var(--cream);font-family:inherit;cursor:pointer}
+    .btn-submit{margin-top:18px;width:100%;padding:12px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;background:rgba(0,255,102,0.2);border:1px solid rgba(0,255,102,0.5);color:var(--green-accent)}
+    .flash{padding:10px 16px;border-radius:8px;font-size:13px;margin-bottom:16px}
+    .flash-success{background:rgba(0,255,102,0.1);border:1px solid rgba(0,255,102,0.3);color:var(--green-accent)}
+    .flash-error{background:rgba(255,100,100,0.12);border:1px solid rgba(255,100,100,0.35);color:#ff8a9e}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <a href="/admin" class="back">← Admin</a>
+    <h1>Aggiorna Campi FIG</h1>
+    <p class="sub">Importa il file Excel FIG per aggiornare CR, Slope e Par di tutti i percorsi.</p>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for cat, msg in messages %}
+        <div class="flash flash-{{ cat }}">{{ msg }}</div>
+      {% endfor %}
+    {% endwith %}
+    <div class="card">
+      <form method="post" enctype="multipart/form-data">
+        <label for="excel_file">File .xlsx</label>
+        <input type="file" id="excel_file" name="excel_file" accept=".xlsx,.xls">
+        <button type="submit" class="btn-submit">Importa e aggiorna JSON</button>
+      </form>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,365 @@
+{# ──────────────────────────────────────────────────────────────────────────
+   netgolf/templates/scorecard/upload.html
+
+   Form di upload foto scorecard. Stile coerente con la palette NETGOLF
+   (verde scuro / neon). Auto-contenuto: include il proprio CSS senza
+   dipendere dal dashboard.css del dashboard principale, così funziona anche
+   se l'utente apre direttamente l'URL.
+
+   Trick mobile: <input capture="environment"> dice al browser di mostrare
+   sia "scatta foto" che "scegli da galleria" come opzioni. Funziona su
+   iOS Safari, Chrome Android, Firefox mobile.
+   ──────────────────────────────────────────────────────────────────────── #}
+<!DOCTYPE html>
+<html lang="{{ get_locale() if get_locale else 'it' }}">
+<head>
+  <meta charset="UTF-8">
+  <title>{{ _("Carica scorecard") }} — NETGOLF</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --green-deep:   #071a10;
+      --green-mid:    #0A5C36;
+      --green-bright: #0d7a46;
+      --green-accent: #00FF66;
+      --green-light:  #00cc52;
+      --navy:         #112240;
+      --cream:        #f0faf5;
+      --white:        #ffffff;
+      --gray-soft:    #6b8c7a;
+      --red-score:    #ff4060;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: linear-gradient(150deg, #071a10 0%, #0a2a1a 40%, #112240 100%);
+      color: var(--cream);
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 20px;
+      gap: 24px;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 540px;
+    }
+
+    h1 {
+      font-size: 24px;
+      font-weight: 800;
+      color: var(--white);
+      margin-bottom: 6px;
+    }
+    .subtitle {
+      font-size: 13px;
+      color: var(--gray-soft);
+      margin-bottom: 28px;
+      line-height: 1.6;
+    }
+
+    .card {
+      background: rgba(10, 92, 54, 0.08);
+      border: 1px solid rgba(0, 255, 102, 0.15);
+      border-radius: 16px;
+      padding: 28px 24px;
+      backdrop-filter: blur(20px);
+    }
+
+    .source-buttons {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .source-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 32px 16px;
+      border: 2px dashed rgba(0, 255, 102, 0.35);
+      border-radius: 14px;
+      background: rgba(0, 255, 102, 0.03);
+      cursor: pointer;
+      transition: all 0.2s;
+      text-align: center;
+    }
+    .source-btn:hover,
+    .source-btn:has(input:focus) {
+      border-color: var(--green-accent);
+      background: rgba(0, 255, 102, 0.08);
+    }
+    .source-btn.selected {
+      border-style: solid;
+      border-color: var(--green-accent);
+      background: rgba(0, 255, 102, 0.12);
+    }
+    .source-btn .src-icon {
+      font-size: 40px;
+      line-height: 1;
+    }
+    .source-btn .src-label {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--cream);
+    }
+    .hint-row {
+      text-align: center;
+      font-size: 11px;
+      color: var(--gray-soft);
+      margin-top: 10px;
+    }
+
+    /* L'input file vero è nascosto: lo trigghera il click sulla <label> */
+    input[type="file"] {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .preview {
+      margin-top: 18px;
+      display: none;
+    }
+    .preview.has-image {
+      display: block;
+    }
+    .preview img {
+      max-width: 100%;
+      max-height: 320px;
+      border-radius: 10px;
+      border: 1px solid rgba(0, 255, 102, 0.2);
+      display: block;
+      margin: 0 auto;
+    }
+    .preview .filename {
+      font-size: 12px;
+      color: var(--gray-soft);
+      text-align: center;
+      margin-top: 8px;
+      font-family: 'Inter', monospace;
+    }
+
+    .actions {
+      display: flex;
+      gap: 12px;
+      margin-top: 22px;
+    }
+    .btn {
+      flex: 1;
+      padding: 14px 18px;
+      border-radius: 10px;
+      border: none;
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--green-mid), var(--green-accent));
+      color: var(--white);
+    }
+    .btn-primary:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: var(--cream);
+    }
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .flash {
+      padding: 12px 16px;
+      border-radius: 10px;
+      font-size: 13px;
+      margin-bottom: 18px;
+      line-height: 1.5;
+    }
+    .flash.error {
+      background: rgba(255, 64, 96, 0.12);
+      border: 1px solid rgba(255, 64, 96, 0.3);
+      color: #ff8a9e;
+    }
+    .flash.info {
+      background: rgba(0, 255, 102, 0.08);
+      border: 1px solid rgba(0, 255, 102, 0.25);
+      color: var(--green-accent);
+    }
+
+    .loader {
+      display: none;
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--cream);
+    }
+    .loader.active { display: block; }
+    .loader .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid rgba(0, 255, 102, 0.2);
+      border-top-color: var(--green-accent);
+      border-radius: 50%;
+      animation: spin 0.9s linear infinite;
+      margin: 0 auto 16px;
+    }
+    .loader .message {
+      font-size: 14px;
+      color: var(--gray-soft);
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .back-link {
+      color: var(--gray-soft);
+      text-decoration: none;
+      font-size: 13px;
+      display: inline-block;
+      margin-bottom: 18px;
+    }
+    .back-link:hover { color: var(--green-accent); }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <a href="{{ url_for('main.dashboard') }}" class="back-link">← {{ _("Torna al dashboard") }}</a>
+
+    <h1>{{ _("Carica scorecard") }}</h1>
+    <p class="subtitle">
+      {{ _("Scatta una foto della scorecard di gara o scegline una dalla galleria. NETGOLF leggerà i dati automaticamente.") }}
+    </p>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="flash {{ category }}">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <div class="card" id="form-card">
+      <form method="POST"
+            action="{{ url_for('scorecard.upload_submit') }}"
+            enctype="multipart/form-data"
+            id="upload-form">
+
+        <div class="source-buttons">
+          <label class="source-btn" for="scorecard_camera">
+            <span class="src-icon">📷</span>
+            <span class="src-label">{{ _("Scatta foto") }}</span>
+            <input type="file"
+                   name="scorecard_image"
+                   id="scorecard_camera"
+                   accept="image/*"
+                   capture="environment">
+          </label>
+          <label class="source-btn" for="scorecard_album">
+            <span class="src-icon">🖼️</span>
+            <span class="src-label">{{ _("Dalla galleria") }}</span>
+            <input type="file"
+                   name="scorecard_image"
+                   id="scorecard_album"
+                   accept="image/*">
+          </label>
+        </div>
+        <div class="hint-row">{{ _("JPG, PNG, HEIC fino a 15 MB") }}</div>
+
+        <div class="preview" id="preview">
+          <img id="preview-img" alt="">
+          <div class="filename" id="preview-filename"></div>
+        </div>
+
+        <div class="actions">
+          <button type="button" class="btn btn-secondary" onclick="window.location='{{ url_for('main.dashboard') }}'">
+            {{ _("Annulla") }}
+          </button>
+          <button type="submit" class="btn btn-primary" id="submit-btn" disabled>
+            {{ _("Analizza") }}
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <div class="loader" id="loader">
+      <div class="spinner"></div>
+      <div class="message">
+        {{ _("Analisi della scorecard in corso… può richiedere fino a 30 secondi.") }}
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function() {
+      var camera = document.getElementById('scorecard_camera');
+      var album  = document.getElementById('scorecard_album');
+      var btnCamera = camera.closest('.source-btn');
+      var btnAlbum  = album.closest('.source-btn');
+      var preview = document.getElementById('preview');
+      var previewImg = document.getElementById('preview-img');
+      var previewName = document.getElementById('preview-filename');
+      var submitBtn = document.getElementById('submit-btn');
+      var form = document.getElementById('upload-form');
+      var formCard = document.getElementById('form-card');
+      var loader = document.getElementById('loader');
+
+      function handleChange(sourceInput, otherInput, sourceBtn, otherBtn) {
+        var file = sourceInput.files && sourceInput.files[0];
+        if (!file) {
+          preview.classList.remove('has-image');
+          submitBtn.disabled = true;
+          sourceBtn.classList.remove('selected');
+          return;
+        }
+
+        // Svuota l'altro input, altrimenti il form manderebbe due file
+        // (o comunque la logica diventa ambigua). Visivamente mostriamo
+        // solo la fonte scelta come "selected".
+        try { otherInput.value = ''; } catch(e) {}
+        otherBtn.classList.remove('selected');
+        sourceBtn.classList.add('selected');
+
+        previewName.textContent = file.name + ' (' + Math.round(file.size / 1024) + ' KB)';
+
+        // HEIC non è renderizzabile dentro <img> in molti browser: nascondiamo
+        // l'anteprima e mostriamo solo il nome file.
+        if (/\.heic$/i.test(file.name) || file.type === 'image/heic') {
+          previewImg.style.display = 'none';
+          previewImg.removeAttribute('src');
+        } else {
+          previewImg.style.display = 'block';
+          previewImg.src = URL.createObjectURL(file);
+        }
+        preview.classList.add('has-image');
+        submitBtn.disabled = false;
+      }
+
+      camera.addEventListener('change', function() { handleChange(camera, album, btnCamera, btnAlbum); });
+      album .addEventListener('change', function() { handleChange(album, camera, btnAlbum, btnCamera); });
+
+      form.addEventListener('submit', function() {
+        // Mostra il loader, nasconde il form (l'OCR può prendere 10-30 sec)
+        formCard.style.display = 'none';
+        loader.classList.add('active');
+      });
+    })();
+  </script>
+
+</body>
+</html>

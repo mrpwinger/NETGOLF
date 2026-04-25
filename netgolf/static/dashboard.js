@@ -47,6 +47,20 @@ function isValida(v, sd) {
   return true;
 }
 
+// Normalizza una data dal formato italiano "11/04/2026" al formato ISO
+// "2026-04-11" per il match col backend scorecard /lookup, che usa
+// sempre date in ISO come restituite da Claude vision.
+function _normDateForLookup(s) {
+  if (!s) return '';
+  s = String(s).trim();
+  // già in ISO?
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+  // formato italiano DD/MM/YYYY o DD-MM-YYYY?
+  const m = s.match(/^(\d{2})[\/\-](\d{2})[\/\-](\d{4})/);
+  if (m) return m[3] + '-' + m[2] + '-' + m[1];
+  return s;
+}
+
 // ═══════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════
@@ -58,6 +72,38 @@ let state = {
   activeFilter: 'all',
   _dataLoaded: false
 };
+
+// ═══════════════════════════════════════════
+// SESSION CACHE (sessionStorage)
+// Persiste i dati FIG per tutta la sessione del tab.
+// Viene cancellato automaticamente alla chiusura del browser/tab.
+// ═══════════════════════════════════════════
+const CACHE_KEY = 'netgolf_fig_cache';
+
+function saveToSessionCache(data) {
+  try {
+    sessionStorage.setItem(CACHE_KEY, JSON.stringify(data));
+  } catch(e) {
+    console.warn('[CACHE] salvataggio fallito:', e);
+  }
+}
+
+function loadFromSessionCache() {
+  try {
+    const raw = sessionStorage.getItem(CACHE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch(e) {
+    console.warn('[CACHE] lettura fallita:', e);
+    return null;
+  }
+}
+
+function clearSessionCache() {
+  try {
+    sessionStorage.removeItem(CACHE_KEY);
+  } catch(e) {}
+}
 
 // ── BOOT: il login NETGOLF (email+pwd) è già avvenuto lato Flask.
 //     Quando arriviamo qui il cookie di sessione è valido e basta caricare i dati.
@@ -190,55 +236,86 @@ async function doLogin() { window.location.href = '/auth/login'; }
 state._dataLoaded = false;
 state._dataLoading = false;
 
-async function loadAllData() {
-  console.log('[LOAD] loadAllData START | results before:', state.results.length);
+async function loadAllData(forceRefresh = false) {
+  console.log('[LOAD] loadAllData START | forceRefresh:', forceRefresh);
   if (!state.user) state.user = {};
   const btn = document.getElementById('btn-login');
+
+  // Se non è un refresh forzato, prova a usare la cache
+  if (!forceRefresh) {
+    const cached = loadFromSessionCache();
+    if (cached) {
+      console.log('[CACHE] dati trovati in sessionStorage, skip fetch FIG');
+      state.results     = cached.results     || [];
+      state.hcpHistory  = cached.hcpHistory  || [];
+      state.scorecards  = cached.scorecards  || [];
+      if (cached.profile) {
+        state.user.profile     = cached.profile;
+        state.user.hcp         = cached.profile.handicapIndex || cached.profile.handicap_index || cached.hcp || '—';
+        state.user.displayName = ((cached.profile.nome||'') + ' ' + (cached.profile.cognome||'')).trim() || state.user.displayName;
+      }
+      state._dataLoaded = true;
+      switchToMain();
+      if (btn) btn.classList.remove('loading');
+      return;
+    }
+  }
+
   try {
-    // Carica profilo e storico in parallelo
-    const [profiloRes, storicoRes] = await Promise.all([
-      fetch(PROXY_URL + '/api/fig/profilo', { headers: apiHeaders() }),
-      fetch(PROXY_URL + '/api/fig/storico', { headers: apiHeaders() })
+    const [profiloRes, storicoRes, scorecardsRes] = await Promise.all([
+      fetch(PROXY_URL + '/api/fig/profilo',          { headers: apiHeaders() }),
+      fetch(PROXY_URL + '/api/fig/storico',          { headers: apiHeaders() }),
+      fetch('/scorecard/api/scorecards-index',       { headers: apiHeaders() })
     ]);
 
     if (profiloRes.ok) {
       const profiloData = await profiloRes.json();
       const profile = profiloData.profile;
       if (profile) {
-        state.user.profile = profile;
+        state.user.profile     = profile;
         state.user.tessHistory = profiloData.tessHistory || [];
-        state.user.hcp = profile.handicapIndex || profile.handicap || '—';
+        state.user.hcp         = profile.handicapIndex || profile.handicap_index || profile.handicap || '—';
         const nome = ((profile.nome||'') + ' ' + (profile.cognome||'')).trim();
         state.user.displayName = nome || state.user.displayName;
       }
     }
 
-    console.log('[APP] storicoRes status:', storicoRes.status, storicoRes.ok);
     if (storicoRes.ok) {
       const storicoData = await storicoRes.json();
-      console.log('[APP] storico results:', storicoData.results?.length, '| hcpHistory:', storicoData.hcpHistory?.length);
-      state.results = storicoData.results || [];
-      state.hcpHistory = storicoData.hcpHistory || [];
-      if (!state.user.hcp && storicoData.hcpHistory?.length)
-        state.user.hcp = storicoData.hcpHistory[storicoData.hcpHistory.length-1].value.toFixed(1);
+      console.log('[APP] storico results:', storicoData.results?.length, '| hcpHistory:', storicoData.hcp_history?.length);
+      state.results    = storicoData.results     || [];
+      state.hcpHistory = storicoData.hcp_history || storicoData.hcpHistory || [];
+      if (!state.user.hcp && state.hcpHistory.length)
+        state.user.hcp = state.hcpHistory[state.hcpHistory.length-1].value.toFixed(1);
     } else {
       console.log('[APP] storico fallito:', storicoRes.status);
     }
 
-    console.log('[APP] state.results:', state.results.length, '| _dataLoaded before:', state._dataLoaded);
+    if (scorecardsRes && scorecardsRes.ok) {
+      const scData = await scorecardsRes.json();
+      state.scorecards = scData.scorecards || [];
+    } else {
+      state.scorecards = [];
+    }
+
+    // Salva tutto in sessionStorage
+    saveToSessionCache({
+      results:    state.results,
+      hcpHistory: state.hcpHistory,
+      scorecards: state.scorecards,
+      profile:    state.user.profile,
+      hcp:        state.user.hcp,
+    });
+
     state._dataLoaded = true;
     switchToMain();
   } catch(e) {
     console.error('[LOAD] loadAllData ERROR:', e.message, e);
     showError('Errore di connessione. Riprova più tardi.');
-} finally {
+  } finally {
     if (btn) btn.classList.remove('loading');
   }
 }
-
-
-
-
 
 function showError(msg) {
   const el = document.getElementById('login-error');
@@ -292,9 +369,11 @@ function switchToMain() {
   if (nav) nav.style.display = '';
   document.querySelectorAll('.tab-btn, .nav-item').forEach(b => b.disabled = false);
 
+  // Aggiorna indice scorecard (può essere cambiato da dettaglio scorecard)
+  refreshScorecards().then(() => renderResults());
+  
   // Render tutto
   renderSparkline();
-  renderResults();
   renderCharts();
   renderProfile();
   renderHcpCalc();
@@ -346,6 +425,14 @@ function renderResults(filter = 'all') {
     const varNum = parseFloat((r.variazione || '0').replace(',','.'));
     const varColor = varNum > 0 ? 'var(--red-score)' : varNum < 0 ? 'var(--green-light)' : 'var(--gray-soft)';
     const varSign = varNum > 0 ? '+' : '';
+    const sc = findScorecardForResult(r);
+    const scorecardBadge = sc
+       ? '<a href="/scorecard/' + sc.id + '" onclick="event.stopPropagation()" ' +
+       'style="display:inline-flex;align-items:center;gap:4px;text-decoration:none;' +
+       'background:rgba(0,255,102,0.15);border:1px solid rgba(0,255,102,0.35);' +
+       'color:var(--green-accent);border-radius:6px;padding:3px 8px;font-size:11px;font-weight:600">' +
+       '📋 Scorecard</a>'
+       : '';
     return '<div class="result-card" style="animation-delay:' + (i*20) + 'ms" onclick="openDetail(' + r.id + ')">' +
       '<div class="rc-top">' +
         '<div class="rc-name">' + (r.gara || '—') + '</div>' +
@@ -358,6 +445,8 @@ function renderResults(filter = 'all') {
       '<div style="font-size:12px;color:var(--gray-soft);margin-bottom:8px">' + (r.esecutore || '') + ' · ' + (r.data || '') + '</div>' +
       '<div class="rc-meta">' +
         '<span class="badge badge-format">' + (r.formula || '—') + '</span>' +
+        // ... altri badge ...
+        (scorecardBadge ? '<span>' + scorecardBadge + '</span>' : '') +
         '<span class="badge badge-club">' + (r.buche || '—') + ' buche</span>' +
         (isValida(r.valida) ? '<span class="badge" style="background:rgba(76,175,80,0.2);color:var(--green-light)">✓ Valida</span>' : '<span class="badge" style="background:rgba(229,115,115,0.15);color:var(--red-score)">✗ Non valida</span>') +
         '<span class="badge badge-hcp">PHCP ' + (r.playingHcp || '—') + '</span>' +
@@ -918,7 +1007,9 @@ function renderHcpCalc() {
     // Exceptional score badge rimosso (non mostrato all'utente)
     const exceptBadge = '';
 
-    return '<div class="' + rowClass + '" style="animation-delay:' + (i*20) + 'ms">' +
+    return '<div class="' + rowClass + '" style="animation-delay:' + (i*20) + 'ms"' +
+      ' data-date="' + _normDateForLookup(r.data) + '"' +
+      ' data-circolo="' + (r.esecutore || '').replace(/"/g,'&quot;') + '">' +
       '<div class="sd-rank' + (isTop ? ' highlight' : '') + '">' + (i+1) + '</div>' +
       '<div class="sd-info">' +
         '<div class="sd-gara">' + (r.gara || '—') + (isLast ? ' 🔴' : '') + '</div>' +
@@ -1090,20 +1181,21 @@ async function hgPopulateCircoli() {
     const r = await fetch(PROXY_URL + '/api/campi', { headers: apiHeaders() });
     if (!r.ok) return;
     const data = await r.json();
-    const circoli = (data.circoli || []).filter(c => c.percorsi && c.percorsi.length > 0);
+    const circoli = (data.circoli || []).filter(c => c.nome);  // solo filtro nome
     circoli.sort((a, b) => a.nome.localeCompare(b.nome));
     circoli.forEach(c => {
       const o = document.createElement('option');
       o.value = c.nome; o.textContent = c.nome;
       sel.appendChild(o);
     });
-    // Pre-seleziona circolo dell'ultima gara
     const lastGame = state.results && state.results[0];
     if (lastGame) {
-      const match = circoli.find(c => c.nome.includes((lastGame.esecutore||'').split(' ')[0].toUpperCase()));
+      const match = circoli.find(c =>
+        c.nome.includes((lastGame.esecutore || '').split(' ')[0].toUpperCase())
+      );
       if (match) { sel.value = match.nome; hgLoadPercorsi(); }
     }
-  } catch(e) {}
+  } catch(e) { console.warn('hgPopulateCircoli error:', e); }
 }
 
 async function hgLoadPercorsi() {
@@ -1123,6 +1215,7 @@ async function hgLoadPercorsi() {
       const o = document.createElement('option');
       o.value = p.id; o.textContent = p.nome;
       o.dataset.tees = JSON.stringify(p.tees || []);
+      o.dataset.par  = p.par || '';          // ← aggiungi questa riga
       percSel.appendChild(o);
     });
     percSel.disabled = false;
@@ -1138,11 +1231,17 @@ function hgLoadTees() {
   ['hg-cr','hg-sr','hg-par'].forEach(id => document.getElementById(id).value = '');
   const sel = percSel.options[percSel.selectedIndex];
   if (!sel || !sel.dataset.tees) return;
+  console.log('[HG] dataset.tees raw:', sel.dataset.tees);   // ← aggiungi
+  console.log('[HG] dataset.par:', sel.dataset.par);          // ← aggiungi
+  // Precompila par dal percorso (non più stima da CR)
+  if (sel.dataset.par) document.getElementById('hg-par').value = sel.dataset.par;
+
   const tees = JSON.parse(sel.dataset.tees);
-  tees.filter(t => t.cr && t.sr).forEach(t => {
+  tees.filter(t => t.cr && t.slope).forEach(t => {
+    console.log('[HG] aggiungendo tee:', t);   // ← aggiungi
     const o = document.createElement('option');
-    o.value = JSON.stringify({ cr: t.cr, sr: t.sr });
-    o.textContent = (t.tee_nome || t.tee_id) + '  CR ' + t.cr + ' / SR ' + t.sr;
+    o.value = JSON.stringify({ cr: t.cr, sr: t.slope });
+    o.textContent = (t.tee_nome || t.tee_id) + '  CR ' + t.cr + ' / SR ' + t.slope;
     teeSel.appendChild(o);
   });
   teeSel.disabled = false;
@@ -1156,9 +1255,7 @@ function hgSelectTee() {
     const { cr, sr } = JSON.parse(val);
     document.getElementById('hg-cr').value = cr;
     document.getElementById('hg-sr').value = sr;
-    // Par = round(CR) come stima
-    if (!document.getElementById('hg-par').value)
-      document.getElementById('hg-par').value = Math.round(parseFloat(cr));
+    // Par non viene sovrascritto: è già compilato da hgLoadTees
   } catch(e) {}
 }
 
@@ -1206,31 +1303,26 @@ function calcHcpGioco() {
 // ── Helpers dropdown simulazione ────────────────────────────
 async function simPopulateCircoli() {
   const sel = document.getElementById('sim-circolo-sel');
-  if (!sel || sel.options.length > 1) return; // già popolato
+  if (!sel || sel.options.length > 1) return;
   try {
     const r = await fetch(PROXY_URL + '/api/campi', { headers: apiHeaders() });
-    console.log('[SIM] /api/campi status:', r.status);
     if (!r.ok) return;
     const data = await r.json();
-    console.log('[SIM] campi totale:', data.totale, '| aggiornato:', data.aggiornato);
-    console.log('[SIM] primo circolo raw:', JSON.stringify((data.circoli||[])[0]));
-    // Accetta circoli con o senza percorsi
-    const circoli = (data.circoli || []).filter(c => c.nome);
-    console.log('[SIM] circoli totali:', circoli.length, '| con percorsi:', circoli.filter(c=>c.percorsi&&c.percorsi.length>0).length);
-    circoli.sort((a,b) => a.nome.localeCompare(b.nome));
+    const circoli = (data.circoli || []).filter(c => c.nome);  // solo filtro nome
+    circoli.sort((a, b) => a.nome.localeCompare(b.nome));
     circoli.forEach(c => {
       const opt = document.createElement('option');
-      opt.value = c.nome;
-      opt.textContent = c.nome;
+      opt.value = c.nome; opt.textContent = c.nome;
       sel.appendChild(opt);
     });
-    // Pre-seleziona il circolo dell'ultima gara se disponibile
     const lastGame = state.results && state.results[0];
     if (lastGame && lastGame.esecutore) {
-      const match = circoli.find(c => c.nome.includes(lastGame.esecutore.split(' ')[0].toUpperCase()));
+      const match = circoli.find(c =>
+        c.nome.includes(lastGame.esecutore.split(' ')[0].toUpperCase())
+      );
       if (match) { sel.value = match.nome; simLoadPercorsi(); }
     }
-  } catch(e) {}
+  } catch(e) { console.warn('simPopulateCircoli error:', e); }
 }
 
 async function simLoadPercorsi() {
@@ -1251,6 +1343,7 @@ async function simLoadPercorsi() {
       opt.value = p.id;
       opt.textContent = p.nome;
       opt.dataset.tees = JSON.stringify(p.tees || []);
+      opt.dataset.par  = p.par || '';          // ← aggiungi
       percSel.appendChild(opt);
     });
     percSel.disabled = false;
@@ -1265,12 +1358,17 @@ function simLoadTees() {
   teeSel.disabled  = true;
   const selected = percSel.options[percSel.selectedIndex];
   if (!selected || !selected.dataset.tees) return;
+
+  // Precompila par dal percorso
+  const parEl = document.getElementById('sim-par');
+  if (parEl && selected.dataset.par) parEl.value = selected.dataset.par;
+
   const tees = JSON.parse(selected.dataset.tees);
   tees.forEach(t => {
-    if (!t.cr || !t.sr) return; // salta tee senza CR/SR
+    if (!t.cr || !t.slope) return;
     const opt = document.createElement('option');
-    opt.value = JSON.stringify({ cr: t.cr, sr: t.sr });
-    opt.textContent = (t.tee_nome || 'Tee') + ' — CR ' + t.cr + ' / SR ' + t.sr;
+    opt.value = JSON.stringify({ cr: t.cr, sr: t.slope });
+    opt.textContent = (t.tee_nome || 'Tee') + ' — CR ' + t.cr + ' / SR ' + t.slope;
     teeSel.appendChild(opt);
   });
   teeSel.disabled = false;
@@ -1439,6 +1537,23 @@ document.getElementById('btn-debug').addEventListener('click', async () => {
 document.getElementById('export-hcp-csv').addEventListener('click', () => exportHcpCSV());
 document.getElementById('export-pdf').addEventListener('click', () => exportPDF());
 
+// Tessera HCP NETGOLF: apre la pagina /tessera in una nuova tab.
+// Il server fa fetch fresco del profilo FIG e renderizza la tessera; da lì
+// l'utente fa Cmd+P / Ctrl+P per salvarla in PDF.
+const _btnTessera = document.getElementById('export-tessera');
+if (_btnTessera) _btnTessera.addEventListener('click', () => {
+  // Prima di aprire, verifichiamo che ci sia uno user caricato. Se non c'è,
+  // probabilmente il caricamento dati FIG non è ancora finito o è fallito:
+  // in entrambi i casi conviene non andare avanti, perché il backend
+  // chiederebbe comunque le credenziali FIG e se mancano restituirebbe un 400.
+  if (!state.user || !state.user.profile) {
+    alert('Profilo FIG non ancora caricato. Riprova tra qualche secondo.');
+    return;
+  }
+  window.open('/tessera', '_blank', 'noopener');
+});
+ 
+
 function exportCSV() {
   if (!state.results.length) return alert('Nessun dato da esportare.');
   const rows = [['Data','Gara','Esecutore','Formula','Buche','Valida','Playing HCP','Stbl','AGS','PCC','SD','Corr','Index Vecchio','Index Nuovo','Variazione']];
@@ -1492,3 +1607,63 @@ function exportPDF() {
   </body></html>`);
   win.document.close();
 }
+
+function findScorecardForResult(r) {
+  console.log('[SC] state.scorecards:', state.scorecards?.length, JSON.stringify(state.scorecards));
+  if (!state.scorecards || !state.scorecards.length) return null;
+  const dataFig = r.data || ''; // "DD/MM/YYYY"
+  // converti in YYYY-MM-DD
+  const parts = dataFig.split('/');
+  if (parts.length !== 3) return null;
+  const dataIso = parts[2] + '-' + parts[1].padStart(2,'0') + '-' + parts[0].padStart(2,'0');
+  const circoloFig = (r.esecutore || '').trim().toUpperCase();
+  return state.scorecards.find(sc => {
+    if (sc.data_gara !== dataIso) return false;
+    const a = sc.circolo, b = circoloFig;
+    return a && b && (a.includes(b) || b.includes(a));
+  }) || null;
+}
+
+async function refreshScorecards() {
+  try {
+    const res = await fetch('/scorecard/api/scorecards-index', { headers: apiHeaders() });
+    if (res.ok) {
+      const data = await res.json();
+      state.scorecards = data.scorecards || [];
+      // Aggiorna la cache con i nuovi dati scorecard
+      const cached = loadFromSessionCache();
+      if (cached) {
+        cached.scorecards = state.scorecards;
+        saveToSessionCache(cached);
+      }
+    }
+  } catch(e) {
+    console.warn('refreshScorecards fallito:', e);
+  }
+}
+
+// Esposto globalmente per poterlo chiamare da un bottone HTML
+function forceRefreshData() {
+  clearSessionCache();
+  loadAllData(true);
+}
+ 
+/* ─────────────────────────────────────────────────────────────────────────
+ * IMPORTANTE — prerequisito DOM:
+ *
+ * Le righe .sd-row dello storico DEVONO avere gli attributi:
+ *     data-date="YYYY-MM-DD"
+ *     data-circolo="NOME CIRCOLO"
+ *
+ * Se nel rendering corrente NON sono presenti, devi aggiungerli nella
+ * funzione che genera l'HTML delle righe storico (cerca dove vengono
+ * creati gli .sd-row, intorno alla riga 800-900 di dashboard.js).
+ *
+ * Esempio: se oggi hai
+ *     '<div class="sd-row">...'
+ * cambialo in
+ *     '<div class="sd-row" data-date="' + r.data + '" data-circolo="' + (r.circolo || '') + '">...'
+ *
+ * (sostituendo r.data e r.circolo con i nomi dei campi reali del tuo
+ * oggetto risultato).
+ * ───────────────────────────────────────────────────────────────────────── */

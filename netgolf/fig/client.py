@@ -492,11 +492,7 @@ class FigClient:
     @staticmethod
     def _rows_to_results(
         all_rows: list[dict[str, Any]]
-    ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-        """
-        Converte le righe grezze in oggetti risultato strutturati.
-        Stessa mappatura posizionale di server.js righe 674-709.
-        """
+        ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
         def parse_date(s: str):
             from datetime import datetime
             parts = (s or "").split("/")
@@ -506,44 +502,43 @@ class FigClient:
                 return datetime(int(parts[2]), int(parts[1]), int(parts[0]))
             except ValueError:
                 return datetime(1970, 1, 1)
-
+    
         results: list[dict[str, Any]] = []
         hcp_history: list[dict[str, Any]] = []
-
+    
         for i, row in enumerate(all_rows):
             c = row["cells"]
-
             def col(idx: int) -> str:
                 return c[idx] if idx < len(c) else ""
-
+    
             res = {
                 "id": i,
                 "garaId": row.get("_garaId", ""),
                 "circoloIdGes": row.get("_circoloId", ""),
-                "data": col(0),
-                "tessera": col(1),
-                "tesserato": col(1),
-                "gara": col(2),
-                "tipoRisultato": col(3),
-                "esecutore": col(4),
-                "giro": col(5),
-                "formula": col(6),
-                "buche": col(7),
-                "valida": col(8),
-                "playingHcp": col(9),
-                "par": col(10),
-                "cr": col(11),
-                "sr": col(12),
-                "stbl": col(13),
-                "ags": col(14),
-                "pcc": col(15),
-                "sd": col(16),
-                "corrSd": col(17),
-                "corr": col(18),
-                "indexVecchio": col(19),
-                "indexNuovo": col(20),
-                "variazione": col(21),
-                "motivazione": col(6),
+                "data":         col(0),
+                "tesserato":    col(1),   # NUOVO: nome completo tesserato
+                "tessera":      col(2),   # shiftato da 1 a 2
+                "gara":         col(3),   # shiftato da 2 a 3
+                "tipoRisultato": col(4),  # shiftato da 3 a 4
+                "esecutore":    col(5),   # shiftato da 4 a 5
+                "giro":         col(6),   # shiftato da 5 a 6
+                "formula":      col(7),   # shiftato da 6 a 7
+                "buche":        col(8),   # shiftato da 7 a 8
+                "valida":       col(9),   # shiftato da 8 a 9
+                "playingHcp":   col(10),  # shiftato da 9 a 10
+                "par":          col(11),  # shiftato da 10 a 11
+                "cr":           col(12),  # shiftato da 11 a 12
+                "sr":           col(13),  # shiftato da 12 a 13
+                "stbl":         col(14),  # shiftato da 13 a 14
+                "ags":          col(15),  # shiftato da 14 a 15
+                "pcc":          col(16),  # shiftato da 15 a 16
+                "sd":           col(17),  # shiftato da 16 a 17
+                "corrSd":       col(18),  # shiftato da 17 a 18
+                "corr":         col(19),  # shiftato da 18 a 19
+                "indexVecchio": col(20),  # shiftato da 19 a 20
+                "indexNuovo":   col(21),  # shiftato da 20 a 21
+                "variazione":   col(22),  # shiftato da 21 a 22
+                "motivazione":  col(7),   # stesso di formula (shiftato)
             }
             results.append(res)
             if res["indexNuovo"] and res["data"]:

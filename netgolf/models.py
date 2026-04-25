@@ -37,6 +37,10 @@ class User(db.Model, UserMixin):
         cascade="all, delete-orphan",
     )
 
+    garmin_credential: Mapped["GarminCredential | None"] = relationship(
+        back_populates="user", uselist=False, cascade="all, delete-orphan"
+    )
+
     def __repr__(self) -> str:
         return f"<User id={self.id} email={self.email!r}>"
 
@@ -126,3 +130,155 @@ class FraseAssegnata(db.Model):
     __table_args__ = (
         db.UniqueConstraint("user_id", "anno", "mese", name="uq_frase_user_periodo"),
     )
+class FigResult(db.Model):
+    """
+    Cache locale di una gara dello storico FIG di un utente. Popolata
+    on-demand quando l'utente carica una scorecard che fa match (data + circolo)
+    con una gara dello storico live, così le scorecard hanno una FK stabile
+    a cui agganciarsi.
+ 
+    Non è una sincronizzazione completa dello storico FIG: contiene solo le
+    gare per cui esistono scorecard caricate. Le altre vivono solo in cache
+    live durante il render del dashboard.
+    """
+ 
+    __tablename__ = "fig_results"
+ 
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+ 
+    # Identificativi della gara, normalizzati per il match
+    data_gara: Mapped[str] = mapped_column(db.String(10), nullable=False, index=True)  # "YYYY-MM-DD"
+    circolo: Mapped[str] = mapped_column(db.String(120), nullable=False)
+    nome_torneo: Mapped[str | None] = mapped_column(db.String(200))
+ 
+    # Snapshot dei dati FIG al momento del primo match (informativo)
+    fig_data_raw: Mapped[str | None] = mapped_column(db.Text)  # JSON serialized
+ 
+    created_at: Mapped[datetime] = mapped_column(db.DateTime, default=datetime.utcnow, nullable=False)
+ 
+    # Relazione one-to-many con le scorecard caricate per questa gara
+    scorecards: Mapped[list["Scorecard"]] = relationship(
+        back_populates="fig_result",
+        cascade="all, delete-orphan",
+    )
+ 
+    __table_args__ = (
+        db.UniqueConstraint("user_id", "data_gara", "circolo", name="uq_figresult_user_date_club"),
+    )
+ 
+ 
+class Scorecard(db.Model):
+    """
+    Scorecard caricata dall'utente: header con i dati di gara, percorso,
+    handicap, e una relazione one-to-many con ScorecardHole per le 18 buche.
+    """
+ 
+    __tablename__ = "scorecards"
+ 
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+ 
+    # FK opzionale alla gara FIG. Se l'utente carica una scorecard di cui
+    # NETGOLF non trova la gara nello storico, qui resta NULL.
+    fig_result_id: Mapped[int | None] = mapped_column(
+        db.ForeignKey("fig_results.id", ondelete="SET NULL"), index=True
+    )
+ 
+    # Dati estratti dall'OCR e confermati dall'utente
+    torneo_nome: Mapped[str | None] = mapped_column(db.String(200))
+    data_gara: Mapped[str | None] = mapped_column(db.String(10), index=True)  # "YYYY-MM-DD"
+    circolo: Mapped[str | None] = mapped_column(db.String(120), index=True)
+    percorso: Mapped[str | None] = mapped_column(db.String(120))
+    tee_colore: Mapped[str | None] = mapped_column(db.String(40))
+    par_totale: Mapped[int | None] = mapped_column(db.Integer)
+    cr: Mapped[float | None] = mapped_column(db.Float)
+    sr: Mapped[int | None] = mapped_column(db.Integer)
+ 
+    giocatore_nome: Mapped[str | None] = mapped_column(db.String(200))
+    giocatore_tessera: Mapped[str | None] = mapped_column(db.String(20))
+    hcp_index: Mapped[float | None] = mapped_column(db.Float)
+    hcp_gioco: Mapped[int | None] = mapped_column(db.Integer)
+ 
+    # Totali Stableford precalcolati (somma sulle 18 buche)
+    stbl_lordo_totale: Mapped[int] = mapped_column(db.Integer, default=0, nullable=False)
+    stbl_netto_totale: Mapped[int] = mapped_column(db.Integer, default=0, nullable=False)
+    score_lordo_totale: Mapped[int] = mapped_column(db.Integer, default=0, nullable=False)
+    ags_totale: Mapped[int] = mapped_column(db.Integer, default=0, nullable=False)
+ 
+    created_at: Mapped[datetime] = mapped_column(db.DateTime, default=datetime.utcnow, nullable=False)
+ 
+    # Relazioni
+    fig_result: Mapped["FigResult | None"] = relationship(back_populates="scorecards")
+    holes: Mapped[list["ScorecardHole"]] = relationship(
+        back_populates="scorecard",
+        cascade="all, delete-orphan",
+        order_by="ScorecardHole.buca",
+    )
+
+# Aggiungi questi due campi al modello Scorecard, dopo i campi esistenti:
+    source: Mapped[str] = mapped_column(db.String(20), default="ocr", nullable=False)
+# "ocr" = caricata manualmente via foto, "garmin" = importata da Garmin Connect
+    garmin_scorecard_id: Mapped[str | None] = mapped_column(db.String(40), index=True)
+ 
+ 
+class ScorecardHole(db.Model):
+    """
+    Una riga per ognuna delle 18 buche di una scorecard. Memorizza tutto
+    quello che serve per visualizzare l'espansione nel dashboard senza
+    ricalcoli al volo: par, ordine_colpi, score lordo, colpi tecnici
+    ricevuti, Stableford lordo e netto.
+    """
+ 
+    __tablename__ = "scorecard_holes"
+ 
+    id: Mapped[int] = mapped_column(primary_key=True)
+    scorecard_id: Mapped[int] = mapped_column(
+        db.ForeignKey("scorecards.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    buca: Mapped[int] = mapped_column(db.Integer, nullable=False)  # 1..18
+    par: Mapped[int | None] = mapped_column(db.Integer)
+    metri_uomini: Mapped[int | None] = mapped_column(db.Integer)
+    ordine_colpi: Mapped[int | None] = mapped_column(db.Integer)
+ 
+    # Score: int normale (1..20) oppure stringa "X" per no-return.
+    # Lo memorizziamo come stringa per gestire entrambi i casi.
+    score_raw: Mapped[str | None] = mapped_column(db.String(4))
+    score_ags: Mapped[int | None] = mapped_column(db.Integer)
+ 
+    # Calcolati al momento del salvataggio (vedi netgolf/scorecard/stableford.py)
+    colpi_ricevuti: Mapped[int] = mapped_column(db.Integer, default=0, nullable=False)
+    stbl_lordo: Mapped[int] = mapped_column(db.Integer, default=0, nullable=False)
+    stbl_netto: Mapped[int] = mapped_column(db.Integer, default=0, nullable=False)
+ 
+    scorecard: Mapped[Scorecard] = relationship(back_populates="holes")
+ 
+    __table_args__ = (
+        db.UniqueConstraint("scorecard_id", "buca", name="uq_scorecardhole_card_buca"),
+    )
+
+class GarminCredential(db.Model):
+    """
+    Credenziali Garmin Connect per un utente NETGOLF.
+    One-to-one con User. Cifrata con AES-GCM come FigCredential.
+    """
+    __tablename__ = "garmin_credentials"
+
+    user_id: Mapped[int] = mapped_column(
+        db.ForeignKey("users.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    email: Mapped[str] = mapped_column(db.String(200), nullable=False)
+    password_ciphertext: Mapped[str] = mapped_column(db.Text, nullable=False)
+    password_nonce: Mapped[str] = mapped_column(db.String(32), nullable=False)
+
+    created_at: Mapped[datetime] = mapped_column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+    )
+
+    user: Mapped["User"] = relationship(back_populates="garmin_credential")
