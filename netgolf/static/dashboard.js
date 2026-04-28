@@ -109,11 +109,10 @@ function clearSessionCache() {
 //     Quando arriviamo qui il cookie di sessione è valido e basta caricare i dati.
 async function tryAutoLogin() {
   try {
+    await loadConfig();   // features disponibili prima di loadAllData
     await loadAllData();
   } catch (e) {
     console.error('[BOOT] errore caricamento:', e);
-    // Se è un 401 significa che Flask ha fatto scadere la sessione:
-    // redirect alla pagina di login.
     if (String(e.message || '').includes('401')) {
       window.location.href = '/auth/login';
     }
@@ -262,11 +261,15 @@ async function loadAllData(forceRefresh = false) {
   }
 
   try {
-    const [profiloRes, storicoRes, scorecardsRes] = await Promise.all([
-      fetch(PROXY_URL + '/api/fig/profilo',          { headers: apiHeaders() }),
-      fetch(PROXY_URL + '/api/fig/storico',          { headers: apiHeaders() }),
-      fetch('/scorecard/api/scorecards-index',       { headers: apiHeaders() })
-    ]);
+    const feat = APP_CONFIG?.features || {};
+    const fetchList = [
+      fetch(PROXY_URL + '/api/fig/profilo',    { headers: apiHeaders() }),
+      fetch(PROXY_URL + '/api/fig/storico',    { headers: apiHeaders() }),
+      feat.scorecard !== false
+        ? fetch('/scorecard/api/scorecards-index', { headers: apiHeaders() })
+        : Promise.resolve(null),
+    ];
+    const [profiloRes, storicoRes, scorecardsRes] = await Promise.all(fetchList);
 
     if (profiloRes.ok) {
       const profiloData = await profiloRes.json();
@@ -369,8 +372,13 @@ function switchToMain() {
   if (nav) nav.style.display = '';
   document.querySelectorAll('.tab-btn, .nav-item').forEach(b => b.disabled = false);
 
-  // Aggiorna indice scorecard (può essere cambiato da dettaglio scorecard)
-  refreshScorecards().then(() => renderResults());
+  // Aggiorna indice scorecard solo se la feature è attiva
+  const _feat = APP_CONFIG?.features || {};
+  if (_feat.scorecard !== false) {
+    refreshScorecards().then(() => renderResults());
+  } else {
+    renderResults();
+  }
   
   // Render tutto
   renderSparkline();
@@ -425,7 +433,8 @@ function renderResults(filter = 'all') {
     const varNum = parseFloat((r.variazione || '0').replace(',','.'));
     const varColor = varNum > 0 ? 'var(--red-score)' : varNum < 0 ? 'var(--green-light)' : 'var(--gray-soft)';
     const varSign = varNum > 0 ? '+' : '';
-    const sc = findScorecardForResult(r);
+    const _featR = APP_CONFIG?.features || {};
+    const sc = (_featR.scorecard !== false) ? findScorecardForResult(r) : null;
     const scorecardBadge = sc
        ? '<a href="/scorecard/' + sc.id + '" onclick="event.stopPropagation()" ' +
        'style="display:inline-flex;align-items:center;gap:4px;text-decoration:none;' +
@@ -839,9 +848,11 @@ function applyExceptionalScores(sdArray, hcpIndex) {
   return { adjusted, totalAdj };
 }
 
-// Arrotondamento WHS: al decimo più vicino, con .5 arrotondato al superiore
+// Arrotondamento WHS: al decimo più vicino, con .5 arrotondato al superiore.
+// toFixed(2) elimina il rumore floating-point (es. 24.84999... → "24.85" → 24.9)
+// prima del round finale al primo decimale.
 function whsRound(x) {
-  return Math.round((x + Number.EPSILON) * 10) / 10;
+  return Math.round(parseFloat(x.toFixed(2)) * 10) / 10;
 }
 
 // Calcola HCP Index da un array di SD con exceptional score e cap
@@ -944,6 +955,7 @@ function renderHcpCalc() {
   const sdValues = withSD.map(r => r.sdVal);
   const calc = calcHcpIndex(sdValues, lowHcp, currentHcp, false); // no exceptional nel calcolo reale
   if (!calc) return;
+  console.log('[HCPcalc] avg8:', calc.avg8.toFixed(3), '| pre-cap hcp:', (calc.avg8).toFixed(3), '| hcp finale:', calc.hcp.toFixed(1), '| cap:', calc.capNote || 'nessuno', '| lowHcp raw:', lowHcp, '| lowHcpR:', lowHcp !== null ? Math.round(lowHcp*10)/10 : null);
 
   // Identifica quali sono i migliori 8 (i più bassi)
   // IMPORTANTE: l'ultimo in ordine cronologico (chronoIdx=0, il più recente)
@@ -1024,101 +1036,6 @@ function renderHcpCalc() {
   }).join('');
 }
 
-// ═══════════════════════════════════════════
-// GESGOLF SCORECARD
-// ═══════════════════════════════════════════
-async function openScorecard(id) {
-  const r = state.results.find(x => x.id === id);
-  if (!r) return;
-
-  const overlay = document.getElementById('scorecard-overlay');
-  const body = document.getElementById('sc-body');
-  const title = document.getElementById('sc-title');
-  const meta = document.getElementById('sc-meta');
-
-  title.textContent = r.gara || 'Scorecard';
-  meta.textContent = (r.data || '') + ' · ' + (r.esecutore || '');
-  body.innerHTML = '<div style="text-align:center;padding:30px;color:var(--gray-soft)"><div style="width:24px;height:24px;border:2px solid rgba(76,175,80,0.2);border-top-color:var(--green-accent);border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 12px"></div>Recupero scorecard da GesGolf...</div>';
-  overlay.classList.add('open');
-
-  try {
-    const params = new URLSearchParams({
-      circolo: r.esecutore||'', gara: r.gara||'', data: r.data||'', valida: r.valida||'',
-      garaId: r.garaId||'', circoloId: r.circoloIdGes||''
-    });
-    const res = await fetch(PROXY_URL + '/api/gesgolf/score?' + params.toString(), { headers: apiHeaders() });
-    if (res.status === 401) {
-      body.innerHTML = '<div style="text-align:center;padding:30px;color:var(--gray-soft)"><span style="font-size:32px;display:block;margin-bottom:12px">🔒</span>Sessione scaduta. Esci e rientra.</div>';
-      return;
-    }
-    const data = await res.json();
-
-    if (data.error || !data.scorecard || !data.scorecard.holes.length) {
-      let icon = '😕', msg = data.error || 'Scorecard non disponibile su GesGolf.', link = '';
-      if (data.notValid) { icon = '⛔'; msg = 'Scorecard disponibile solo per gare valide per HCP.'; }
-      else if (data.notOnGesgolf) { icon = '🔍'; msg = 'Questo circolo non pubblica le classifiche su GesGolf.'; }
-      else if (msg && msg.toLowerCase().includes('session')) {
-        icon = '🔒'; msg = 'Sessione scaduta. Esci e rientra per continuare.'; link = '';
-      } else { link = '<br><br><a href="https://www.gesgolf.it/golfonline/clubs/gare.aspx?circolo_id=744" target="_blank" style="color:#00cc52;font-size:12px">Cerca su GesGolf →</a>'; }
-      body.innerHTML = '<div style="text-align:center;padding:30px;color:var(--gray-soft)"><span style="font-size:32px;display:block;margin-bottom:12px">' + icon + '</span>' + msg + link + '</div>';
-      return;
-    }
-
-    const sc = data.scorecard;
-    const holes = sc.holes;
-    const front = holes.filter(h => h.buca <= 9);
-    const back  = holes.filter(h => h.buca > 9);
-
-    const renderHoles = function(hls) {
-      return hls.map(function(h) {
-        const net = h.tirati - h.par;
-        const bg  = net <= -1 ? 'rgba(100,181,246,0.2)' : net === 0 ? 'rgba(76,175,80,0.15)' : net === 1 ? 'rgba(255,255,255,0.05)' : 'rgba(229,115,115,0.15)';
-        const col = net <= -1 ? '#64b5f6' : net === 0 ? '#81c784' : net === 1 ? 'var(--cream)' : '#ef9a9a';
-        return '<div style="text-align:center;padding:8px 4px;background:' + bg + ';border-radius:6px">' +
-          '<div style="font-size:9px;color:var(--gray-soft);margin-bottom:2px">' + h.buca + '</div>' +
-          '<div style="font-size:10px;color:var(--gray-soft);margin-bottom:3px">p' + h.par + '</div>' +
-          '<div style="font-size:16px;font-weight:500;color:' + col + ';font-family:DM Mono,monospace">' + (h.tirati||'—') + '</div>' +
-          '<div style="font-size:9px;color:var(--gray-soft);margin-top:1px">' + (net>0?'+':'') + (net||'E') + '</div>' +
-        '</div>';
-      }).join('');
-    };
-
-    const totOut = front.reduce(function(s,h){return s+h.tirati;},0);
-    const totIn  = back.reduce(function(s,h){return s+h.tirati;},0);
-
-    body.innerHTML =
-      '<div style="display:flex;justify-content:space-between;align-items:center;padding:0 0 12px;border-bottom:1px solid rgba(255,255,255,0.07);margin-bottom:14px">' +
-        '<div><div style="font-size:14px;font-weight:500;color:var(--cream)">' + (data.playerName||'') + '</div>' +
-        '<div style="font-size:11px;color:var(--gray-soft);font-family:DM Mono,monospace">' + (data.hcpCat||'') + ' · PHCP ' + (r.playingHcp||'—') + '</div></div>' +
-        '<div style="text-align:right">' +
-          (data.posizione ? '<div style="font-size:11px;color:var(--gold)">Pos. netto: ' + data.posizione + '</div>' : '') +
-          '<div style="font-size:11px;color:var(--gray-soft)">Stbl netto: ' + (r.stbl||'—') + '</div></div>' +
-      '</div>' +
-      '<div style="font-size:10px;color:var(--gold);font-family:DM Mono,monospace;letter-spacing:2px;margin-bottom:8px">FRONT 9</div>' +
-      '<div style="display:grid;grid-template-columns:repeat(9,1fr);gap:4px;margin-bottom:10px">' + renderHoles(front) + '</div>' +
-      '<div style="text-align:right;font-family:DM Mono,monospace;font-size:13px;color:var(--cream);margin-bottom:14px">OUT: <strong>' + totOut + '</strong></div>' +
-      '<div style="font-size:10px;color:var(--gold);font-family:DM Mono,monospace;letter-spacing:2px;margin-bottom:8px">BACK 9</div>' +
-      '<div style="display:grid;grid-template-columns:repeat(9,1fr);gap:4px;margin-bottom:10px">' + renderHoles(back) + '</div>' +
-      '<div style="text-align:right;font-family:DM Mono,monospace;font-size:13px;color:var(--cream);margin-bottom:14px">IN: <strong>' + totIn + '</strong></div>' +
-      '<div style="display:flex;justify-content:space-between;align-items:center;padding:14px;background:rgba(201,168,76,0.08);border:1px solid rgba(201,168,76,0.2);border-radius:12px;margin-bottom:12px">' +
-        '<div style="font-family:DM Mono,monospace;font-size:12px;color:var(--gold)">TOTALE LORDO</div>' +
-        '<div style="font-family:Playfair Display,serif;font-size:28px;font-weight:900;color:var(--gold-light)">' + (totOut+totIn) + '</div>' +
-      '</div>' +
-      '<div style="display:flex;gap:10px;flex-wrap:wrap;font-size:10px;color:var(--gray-soft)">' +
-        '<span style="color:#64b5f6">■</span> Birdie+  <span style="color:#81c784">■</span> Par  <span style="color:var(--cream)">■</span> Bogey  <span style="color:#ef9a9a">■</span> Double+' +
-      '</div>';
-
-    meta.textContent = (r.data||'') + ' · ' + (r.esecutore||'') + ' · ' + (r.formula||'');
-
-  } catch(e) {
-    body.innerHTML = '<div style="text-align:center;padding:30px;color:var(--red-score)">Errore: ' + e.message + '</div>';
-  }
-}
-
-function closeScoreOverlay(e) {
-  if (e.target === document.getElementById('scorecard-overlay'))
-    document.getElementById('scorecard-overlay').classList.remove('open');
-}
 
 function updateHcpInsight() {
   if (!state._hcpCalc) return;
