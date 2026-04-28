@@ -887,16 +887,19 @@ function calcHcpIndex(sdArray, lowHcp, hcpCurrent, applyExceptional) {
   }
 
   // Soft Cap / Hard Cap (Rule 5.8)
+  // lowHcp arrotondato al 1° decimale prima del confronto, così il diff
+  // è calcolato su valori omogenei (entrambi già al 1° decimale).
   let capNote = '';
   if (lowHcp !== null && !isNaN(lowHcp)) {
-    const diff = hcp - lowHcp;
+    const lowHcpR = whsRound(lowHcp);
+    const diff = hcp - lowHcpR;
     if (diff > 5.0) {
-      hcp = whsRound(lowHcp + 5.0);
-      capNote = 'Hard Cap (Low HCP: ' + lowHcp.toFixed(1) + ')';
+      hcp = whsRound(lowHcpR + 5.0);
+      capNote = 'Hard Cap (Low HCP: ' + lowHcpR.toFixed(1) + ')';
     } else if (diff > 3.0) {
       const excess = diff - 3.0;
-      hcp = whsRound(lowHcp + 3.0 + excess * 0.5);
-      capNote = 'Soft Cap (Low HCP: ' + lowHcp.toFixed(1) + ')';
+      hcp = whsRound(lowHcpR + 3.0 + excess * 0.5);
+      capNote = 'Soft Cap (Low HCP: ' + lowHcpR.toFixed(1) + ')';
     }
   }
 
