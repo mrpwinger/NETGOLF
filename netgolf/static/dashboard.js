@@ -1057,7 +1057,7 @@ function updateHcpInsight() {
     // Ultima gara fuori dai migliori — soglia = il PEGGIORE (più alto) tra i top 8
     // cioè l'ultimo dei migliori 8 ordinati in modo crescente
     thresholdSD = sortedBySD[calc.useCount - 1].sdVal;
-    insightText = 'Ultima gara (SD ' + lastGame.sdVal.toFixed(1) +
+    insightText = 'Ultimo risultato valido (SD ' + lastGame.sdVal.toFixed(1) +
       ') fuori dai migliori ' + calc.useCount + '. ' +
       'PROSSIMA GARA: abbassa HCP con SD < ' + thresholdSD.toFixed(1) +
       ' (il peggiore dei top ' + calc.useCount + '), altrimenti HCP invariato.';
